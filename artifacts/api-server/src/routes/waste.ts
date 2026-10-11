@@ -4,6 +4,7 @@ import { describeGeminiFailure } from "../lib/gemini-error";
 
 const router: IRouter = Router();
 const MAX_IMAGE_BYTES = 6 * 1024 * 1024;
+const GEMINI_MODEL = "gemini-3.8-flash";
 const LIMITATION_NOTE =
   "A photo cannot confirm moisture, quality, or energy value. Lab testing may still be needed before choosing a reuse method.";
 
@@ -84,7 +85,7 @@ router.post("/waste/analyze", async (req, res): Promise<void> => {
 
   try {
     const upstreamResponse = await fetch(
-      "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent",
+      `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json", "x-goog-api-key": apiKey },
@@ -121,7 +122,7 @@ router.post("/waste/analyze", async (req, res): Promise<void> => {
       const errorPayload: unknown = await upstreamResponse.json().catch(() => null);
       const failure = describeGeminiFailure(upstreamResponse.status, errorPayload, apiKey);
       req.log.warn(
-        { model: "gemini-2.5-flash", ...failure.diagnostic },
+        { model: GEMINI_MODEL, ...failure.diagnostic },
         "Gemini image analysis request failed",
       );
       res.status(503).json({ error: failure.message });

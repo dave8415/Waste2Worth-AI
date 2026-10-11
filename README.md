@@ -15,7 +15,7 @@ This app calls Google’s Gemini API directly with your key; it does not use Rep
 ### Troubleshooting analysis errors
 
 Restart the API workflow after adding or changing a secret. Its startup log reports only `geminiApiKeyConfigured: true/false`.
-The server uses the Google Gemini REST `v1beta` endpoint with `gemini-2.5-flash`, authenticating through the server-only `x-goog-api-key` header.
+The server uses the Google Gemini REST `v1beta` endpoint with `gemini-3.8-flash`, authenticating through the server-only `x-goog-api-key` header.
 Provider failures log the upstream HTTP status, model, and redacted Google error message; they do not log the key, request headers, or photo.
 The app distinguishes rejected keys, denied API access, missing models, quota/rate limits, and invalid requests.
 It does not automatically retry, switch models, enable billing, or retain uploaded photos.
