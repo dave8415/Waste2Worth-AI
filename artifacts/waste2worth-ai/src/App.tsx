@@ -4,6 +4,7 @@ import { ErrorBoundary } from '@/components/error-boundary';
 import { Toaster } from '@/components/ui/toaster';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { BiomassProvider } from '@/lib/biomass-state';
+import { TransactionProvider } from '@/lib/transaction-state';
 import NotFound from '@/pages/not-found';
 import Home from '@/pages/home';
 import Analyze from '@/pages/analyze';
@@ -37,9 +38,11 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <BiomassProvider>
+          <TransactionProvider>
           <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, '')}>
             <Router />
           </WouterRouter>
+          </TransactionProvider>
         </BiomassProvider>
         <Toaster />
       </TooltipProvider>

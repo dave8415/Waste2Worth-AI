@@ -1,7 +1,8 @@
 import { useState, type FormEvent } from 'react';
 import { CircleAlert } from 'lucide-react';
 import { useBiomass } from '@/lib/biomass-state';
-import { MATERIALS, REGIONS, parseSupply, type MaterialId, type Quality } from '@/lib/biomass';
+import { PROVINCES, PROVINCE_CITIES } from '@/lib/locations';
+import { MATERIALS, parseSupply, type MaterialId, type Quality } from '@/lib/biomass';
 
 function Field({ id, label, hint, error, children }: { id: string; label: string; hint?: string; error?: string; children: React.ReactNode }) {
   return (
@@ -19,6 +20,9 @@ export function SupplyForm({ onValid }: { onValid?: () => void }) {
   const s = state.supply;
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [checked, setChecked] = useState(false);
+  const provinceOk = PROVINCES.includes(s.region);
+  const cityOk = provinceOk && !!PROVINCE_CITIES[s.region]?.includes(s.location);
+  const legacy = (!!s.region && !provinceOk) || (provinceOk && !!s.location && !cityOk);
 
   function submit(e: FormEvent) {
     e.preventDefault();
@@ -48,15 +52,20 @@ export function SupplyForm({ onValid }: { onValid?: () => void }) {
         <Field id="quantityTonnes" label="Available quantity (tonnes)" hint="Your estimate of stock on hand." error={errors.quantityTonnes}>
           <input className="field-input" {...aria('quantityTonnes')} inputMode="decimal" value={s.quantityTonnes} onChange={(e) => set({ quantityTonnes: e.target.value }, 'quantityTonnes')} placeholder="e.g. 3.5" data-testid="input-quantity" />
         </Field>
-        <Field id="location" label="City or locality" error={errors.location}>
-          <input className="field-input" {...aria('location')} maxLength={200} value={s.location} onChange={(e) => set({ location: e.target.value }, 'location')} placeholder="e.g. Karawang" data-testid="input-location" />
-        </Field>
-        <Field id="region" label="Region (demo service area)" hint="Used only for demo matching rules." error={errors.region}>
-          <select className="field-input" {...aria('region')} value={s.region} onChange={(e) => set({ region: e.target.value }, 'region')} data-testid="select-region">
-            <option value="">Choose region</option>
-            {REGIONS.map((r) => <option key={r} value={r}>{r}</option>)}
+        <Field id="region" label="Province" hint="Used only for demo matching rules." error={errors.region}>
+          <select className="field-input" {...aria('region')} value={provinceOk ? s.region : ''} onChange={(e) => { const p = e.target.value; set({ region: p, location: PROVINCE_CITIES[p]?.includes(s.location) ? s.location : '' }, 'region'); }} data-testid="select-province">
+            <option value="">Choose province</option>
+            {PROVINCES.map((r) => <option key={r} value={r}>{r}</option>)}
           </select>
         </Field>
+        <Field id="location" label="City / regency" error={errors.location}>
+          <select className="field-input" {...aria('location')} disabled={!provinceOk} value={cityOk ? s.location : ''} onChange={(e) => set({ location: e.target.value }, 'location')} data-testid="select-city">
+            <option value="">{provinceOk ? 'Choose city / regency' : 'Choose a province first'}</option>
+            {(PROVINCE_CITIES[s.region] ?? []).map((c) => <option key={c} value={c}>{c}</option>)}
+          </select>
+        </Field>
+        <p className="field-hint span-2 coverage-note" data-testid="text-location-coverage">Limited curated demo coverage: {PROVINCES.length} provinces and selected cities only, not a complete gazetteer.</p>
+        {legacy && <div className="status-message span-2" role="alert" data-testid="status-location-legacy">Saved location "{s.location || '-'}, {s.region || '-'}" is outside demo coverage or inconsistent. Choose a supported province and city to continue.</div>}
         <Field id="moisturePercent" label="Moisture % (optional)" hint="Only if measured. Leave blank if unknown." error={errors.moisturePercent}>
           <input className="field-input" {...aria('moisturePercent')} inputMode="decimal" value={s.moisturePercent} onChange={(e) => set({ moisturePercent: e.target.value }, 'moisturePercent')} placeholder="Unknown" data-testid="input-moisture" />
         </Field>

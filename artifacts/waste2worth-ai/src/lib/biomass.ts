@@ -1,3 +1,5 @@
+import { PROVINCES, isDate, isValidLocation } from "./locations";
+
 export const MATERIALS = [
   { id: "rice-husk", label: "Rice husks", aliases: ["rice husk", "rice hull", "paddy husk"] },
   { id: "palm-kernel-shell", label: "Palm kernel shells", aliases: ["palm kernel shell", "palm shell"] },
@@ -8,7 +10,7 @@ export const MATERIALS = [
   { id: "other", label: "Other / uncertain material", aliases: [] },
 ] as const;
 export type MaterialId = typeof MATERIALS[number]["id"];
-export const REGIONS = ["West Java", "Central Java", "East Java", "North Sumatra", "Riau", "West Kalimantan", "Other region"] as const;
+export const REGIONS = PROVINCES;
 export const USES = ["Biomass fuel", "Biochar", "Compost / mulch", "Other use"] as const;
 export type IntendedUse = typeof USES[number];
 export type Quality = "unknown" | "clean" | "mixed" | "contaminated";
@@ -36,6 +38,8 @@ export interface ImpactDraft {
   reusedTonnes: string;
   intendedUse: IntendedUse;
   massBasis: MassBasis;
+  reportDate?: string;
+  transactionId?: string;
 }
 export interface DemoBuyer {
   id: string;
@@ -58,7 +62,7 @@ export const DEMO_BUYERS: DemoBuyer[] = [
 ];
 type Validation<T> = { ok: true; value: T } | { ok: false; errors: Record<string, string> };
 export const emptySupply: SupplyDraft = { material: "", quantityTonnes: "", location: "", region: "", moisturePercent: "", quality: "unknown", qualityNotes: "" };
-export const emptyImpact: ImpactDraft = { collectedTonnes: "", reusedTonnes: "", intendedUse: "Biomass fuel", massBasis: "unknown" };
+export const emptyImpact: ImpactDraft = { collectedTonnes: "", reusedTonnes: "", intendedUse: "Biomass fuel", massBasis: "unknown", reportDate: "", transactionId: "" };
 export function materialLabel(id: MaterialId | "") {
   return MATERIALS.find(material => material.id === id)?.label ?? "Not selected";
 }
@@ -77,8 +81,8 @@ export function parseSupply(draft: SupplyDraft): Validation<Supply> {
   const moisture = readNumber(draft.moisturePercent);
   if (!MATERIALS.some(material => material.id === draft.material)) errors.material = "Choose the material, or select other / uncertain.";
   if (quantity === null || quantity <= 0 || quantity > 1_000_000) errors.quantityTonnes = "Enter an available quantity above 0 and at most 1,000,000 tonnes.";
-  if (!draft.location.trim() || draft.location.length > 160) errors.location = "Enter a city or locality (up to 160 characters).";
-  if (!(REGIONS as readonly string[]).includes(draft.region)) errors.region = "Choose a region for the demo matching rules.";
+  if (!(REGIONS as readonly string[]).includes(draft.region)) errors.region = "Choose a supported province.";
+  if (!isValidLocation(draft.region, draft.location)) errors.location = "Choose a city/regency belonging to the selected province. Demo coverage is limited to the listed areas.";
   if (draft.moisturePercent.trim() && (moisture === null || moisture < 0 || moisture > 100)) errors.moisturePercent = "Moisture must be between 0 and 100%, or left blank.";
   if (draft.qualityNotes.length > 1000) errors.qualityNotes = "Keep quality notes under 1,000 characters.";
   if (Object.keys(errors).length) return { ok: false, errors };
@@ -161,9 +165,11 @@ export interface ImpactSummary {
   assumptions: string[];
   missingEvidence: string[];
   disclaimer: string;
+  reportDate: string | null;
 }
 export function buildImpactSummary(supply: Supply, draft: ImpactDraft): Validation<ImpactSummary> {
   const errors: Record<string, string> = {};
+  if (draft.reportDate && !isDate(draft.reportDate)) errors.reportDate = "Enter a valid report date.";
   const collected = readNumber(draft.collectedTonnes);
   const reused = readNumber(draft.reusedTonnes);
   if (collected === null || collected < 0 || collected > 1_000_000) errors.collectedTonnes = "Enter collected tonnes from 0 to 1,000,000. Blank is not zero.";
@@ -173,7 +179,7 @@ export function buildImpactSummary(supply: Supply, draft: ImpactDraft): Validati
   if (!["unknown", "as-received", "dry"].includes(draft.massBasis)) errors.massBasis = "Choose a mass basis.";
   if (Object.keys(errors).length) return { ok: false, errors };
   return { ok: true, value: {
-    material: materialLabel(supply.material), location: `${supply.location}, ${supply.region}`,
+    material: materialLabel(supply.material), location: `${supply.location}, ${supply.region}`, reportDate: draft.reportDate || null,
     collectedTonnes: collected!, reusedTonnes: reused!, unallocatedTonnes: collected! - reused!,
     reusedSharePercent: collected! > 0 ? reused! / collected! * 100 : null,
     intendedUse: draft.intendedUse, massBasis: draft.massBasis,
@@ -187,6 +193,7 @@ export function buildImpactSummary(supply: Supply, draft: ImpactDraft): Validati
       "An intended use describes a plan; it does not prove that processing occurred or that the material is suitable.",
     ],
     missingEvidence: [
+      ...(draft.reportDate ? [] : ["Reporting date is missing; no timing or reporting period is assumed."]),
       "Verified weighing records and evidence of actual reuse.",
       "Laboratory moisture, quality, contaminants, and energy-value measurements as relevant.",
       "Disposal or use baseline, transport distances and fuel, processing energy, and defensible emissions factors.",

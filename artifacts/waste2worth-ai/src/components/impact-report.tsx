@@ -1,9 +1,10 @@
 import { Download, ShieldAlert } from 'lucide-react';
 import type { ImpactSummary } from '@/lib/biomass';
+import { transactionImpactText, type DemoTransaction } from '@/lib/transactions';
 
 const BASIS: Record<string, string> = { unknown: 'Unknown', 'as-received': 'As received (wet)', dry: 'Dry' };
 
-export function reportText(s: ImpactSummary, createdAt: string) {
+export function reportText(s: ImpactSummary, createdAt: string, transaction?: DemoTransaction) {
   const share = s.reusedSharePercent === null ? 'Not calculable (zero collected)' : `${s.reusedSharePercent.toFixed(1)}%`;
   return [
     'WASTE2WORTH - UNVERIFIED PROTOTYPE ESG SUMMARY',
@@ -13,6 +14,7 @@ export function reportText(s: ImpactSummary, createdAt: string) {
     '',
     `Material: ${s.material}`,
     `Location: ${s.location}`,
+    `Report date: ${s.reportDate ?? 'Missing'}`,
     `Intended use: ${s.intendedUse}`,
     `Mass basis: ${BASIS[s.massBasis]}`,
     `Collected: ${s.collectedTonnes} t (user-reported)`,
@@ -28,14 +30,15 @@ export function reportText(s: ImpactSummary, createdAt: string) {
     'MISSING EVIDENCE',
     ...s.missingEvidence.map((a) => `- ${a}`),
     '',
+    ...(transaction ? ['', 'LINKED TRANSACTION', transactionImpactText(transaction), ''] : []),
     'Not certified. Not a compliance report. Not proof of carbon credits.',
   ].join('\n');
 }
 
-export function ImpactReport({ summary, createdAt }: { summary: ImpactSummary; createdAt: string }) {
+export function ImpactReport({ summary, createdAt, transaction }: { summary: ImpactSummary; createdAt: string; transaction?: DemoTransaction }) {
   const share = summary.reusedSharePercent;
   function download() {
-    const blob = new Blob([reportText(summary, createdAt)], { type: 'text/plain;charset=utf-8' });
+    const blob = new Blob([reportText(summary, createdAt, transaction)], { type: 'text/plain;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url; a.download = 'waste2worth-unverified-esg-summary.txt';
@@ -55,6 +58,7 @@ export function ImpactReport({ summary, createdAt }: { summary: ImpactSummary; c
         <div><dt>Unallocated</dt><dd data-testid="text-report-unallocated">{summary.unallocatedTonnes} t</dd><small>Fate unknown</small></div>
       </dl>
       <div className="report-rows">
+        <div><span>Report date</span><strong data-testid="text-report-date">{summary.reportDate ?? 'Missing'}</strong></div>
         <div><span>Intended use</span><strong>{summary.intendedUse}</strong></div>
         <div><span>Mass basis</span><strong>{BASIS[summary.massBasis]}</strong></div>
         <div className="not-calc" data-testid="text-emissions-not-calculated"><span>Emissions savings</span><strong>NOT CALCULATED — required data missing</strong></div>
@@ -64,6 +68,7 @@ export function ImpactReport({ summary, createdAt }: { summary: ImpactSummary; c
         <section><h3>Assumptions</h3><ul data-testid="list-report-assumptions">{summary.assumptions.map((a) => <li key={a}>{a}</li>)}</ul></section>
         <section><h3>Missing evidence</h3><ul data-testid="list-report-missing">{summary.missingEvidence.map((a) => <li key={a}>{a}</li>)}</ul></section>
       </div>
+      {transaction && <section className="report-tx"><h3>Linked FICTIONAL DEMO transaction</h3><pre data-testid="text-report-transaction">{transactionImpactText(transaction)}</pre></section>}
       <p className="report-foot">Not certified. Not a compliance report. Not proof of carbon credits.</p>
       <button type="button" className="button-primary" onClick={download} data-testid="button-download-report"><Download size={15} /> Download text summary</button>
     </article>

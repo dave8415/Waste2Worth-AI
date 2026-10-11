@@ -31,6 +31,7 @@ const stateSchema = z.object({
   impact: z.object({
     collectedTonnes: z.string().max(1000), reusedTonnes: z.string().max(1000),
     intendedUse: z.enum([...USES]), massBasis: z.enum(["unknown", "as-received", "dry"]),
+    reportDate: z.string().max(1000).default(""), transactionId: z.string().max(100).default(""),
   }),
   identifiedWasteType: z.string().max(1000),
   interests: z.array(z.object({
@@ -73,7 +74,7 @@ export function BiomassProvider({ children }: { children: ReactNode }) {
   }, [state]);
   const value: BiomassContextValue = {
     state, storageWarning,
-    updateSupply: patch => setState(previous => ({ ...previous, supply: { ...previous.supply, ...patch }, reportCreatedAt: null })),
+    updateSupply: patch => setState(previous => ({ ...previous, supply: { ...previous.supply, ...patch }, impact: { ...previous.impact, transactionId: "" }, reportCreatedAt: null })),
     updateImpact: patch => setState(previous => ({ ...previous, impact: { ...previous.impact, ...patch }, reportCreatedAt: null })),
     adoptIdentification: wasteType => setState(previous => ({
       ...previous, identifiedWasteType: wasteType.slice(0, 1000),

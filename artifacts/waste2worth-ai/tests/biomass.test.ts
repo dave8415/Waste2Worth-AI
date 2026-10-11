@@ -45,7 +45,7 @@ test("matches exclude incompatible materials and sort by explicit region and qua
   assert.ok(matches.find(match => match.buyer.id === "demo-char")?.reasons.some(reason => reason.includes("Outside")));
 });
 test("region and quantity edits change the matching result; partial lots never exceed demand", () => {
-  const outside = findMatches(supply({ region: "Other region", quantityTonnes: "0.1" }));
+  const outside = findMatches(supply({ region: "DKI Jakarta", location: "Jakarta", quantityTonnes: "0.1" }));
   assert.ok(outside.every(match => !match.regionFits && !match.quantityFits));
   const large = findMatches(supply({ quantityTonnes: "100" }));
   assert.ok(large.every(match => match.potentialTonnes <= match.buyer.demandTonnes));

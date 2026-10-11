@@ -6,6 +6,8 @@ import { JourneyNav } from '@/components/journey-nav';
 import { StorageNotice } from '@/components/storage-notice';
 import { ImpactReport } from '@/components/impact-report';
 import { useBiomass } from '@/lib/biomass-state';
+import { useTransactions } from '@/lib/transaction-state';
+import { TransactionSelector } from '@/components/transaction-selector';
 import { USES, buildImpactSummary, exploreUses, materialLabel, parseSupply, type IntendedUse, type MassBasis } from '@/lib/biomass';
 
 export default function Impact() {
@@ -16,6 +18,10 @@ export default function Impact() {
   const result = useMemo(() => (supply ? buildImpactSummary(supply, state.impact) : null), [supply, state.impact]);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const im = state.impact;
+  const { state: txState } = useTransactions();
+  const linked = im.transactionId ? txState.transactions.find((t) => t.id === im.transactionId) : undefined;
+  const linkMissing = !!im.transactionId && !linked;
+  const stale = !!linked && !!state.reportCreatedAt && linked.updatedAt > state.reportCreatedAt;
 
   function submit(e: FormEvent) {
     e.preventDefault();
@@ -42,6 +48,9 @@ export default function Impact() {
           <p>Potential uses come with the checks they need. The summary reports your own numbers transparently, and says plainly what it cannot claim.</p>
         </section>
 
+        <section className="panel" aria-label="Optional transaction source">
+          <TransactionSelector />
+        </section>
         {!supply ? (
           <section className="panel gate" data-testid="status-supply-required">
             <CircleAlert size={22} />
@@ -76,6 +85,12 @@ export default function Impact() {
                 <p className="panel-copy">Enter these separately from available stock. Blank is not zero; type 0 if nothing was reused. Changing any value clears the generated summary.</p>
                 <form onSubmit={submit} noValidate className="form-grid one" data-testid="form-impact">
                   <div className="field">
+                    <label htmlFor="reportDate">Report date (optional)</label>
+                    <input type="date" className="field-input" {...aria('reportDate')} value={im.reportDate ?? ''} onChange={(e) => change({ reportDate: e.target.value }, 'reportDate')} data-testid="input-report-date" />
+                    {!errors.reportDate && <span className="field-hint" id="reportDate-hint">Shown as missing if blank.</span>}
+                    {err('reportDate')}
+                  </div>
+                  <div className="field">
                     <label htmlFor="collectedTonnes">Collected (tonnes)</label>
                     <input className="field-input" inputMode="decimal" {...aria('collectedTonnes')} value={im.collectedTonnes} onChange={(e) => change({ collectedTonnes: e.target.value }, 'collectedTonnes')} data-testid="input-collected" />
                     {!errors.collectedTonnes && <span className="field-hint" id="collectedTonnes-hint">Mass you actually gathered.</span>}
@@ -109,8 +124,12 @@ export default function Impact() {
               </section>
 
               <section aria-live="polite" data-testid="section-report">
-                {state.reportCreatedAt && result?.ok ? (
-                  <ImpactReport summary={result.value} createdAt={state.reportCreatedAt} />
+                {stale || linkMissing ? (
+                  <div className="panel empty-block tall" role="alert" data-testid="status-report-stale">
+                    <p><strong>{linkMissing ? 'Linked record not found.' : 'Summary out of date.'}</strong><br />{linkMissing ? 'The linked demo transaction was removed. Unlink it or choose another, then generate again.' : 'The linked demo transaction changed after this summary was generated. Generate again.'}</p>
+                  </div>
+                ) : state.reportCreatedAt && result?.ok ? (
+                  <ImpactReport summary={result.value} createdAt={state.reportCreatedAt} transaction={linked} />
                 ) : (
                   <div className="panel empty-block tall" data-testid="status-report-empty">
                     <p><strong>No summary yet.</strong><br />Enter collected and reused tonnes, then generate. If you change any input, generate again for an up-to-date summary.</p>

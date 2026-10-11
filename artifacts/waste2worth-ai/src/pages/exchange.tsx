@@ -6,6 +6,10 @@ import { JourneyNav } from '@/components/journey-nav';
 import { StorageNotice } from '@/components/storage-notice';
 import { SupplyForm } from '@/components/supply-form';
 import { MatchCard } from '@/components/match-card';
+import { OfferFields } from '@/components/offer-fields';
+import { TransactionCard } from '@/components/transaction-card';
+import { useTransactions } from '@/lib/transaction-state';
+import { validateOffer } from '@/lib/transactions';
 import { useBiomass } from '@/lib/biomass-state';
 import { DEMO_BUYERS, findMatches, materialLabel, parseSupply } from '@/lib/biomass';
 
@@ -13,6 +17,8 @@ export default function Exchange() {
   const { state } = useBiomass();
   const parsed = useMemo(() => parseSupply(state.supply), [state.supply]);
   const supply = parsed.ok ? parsed.value : null;
+  const tx = useTransactions();
+  const offerErrors = useMemo(() => (supply ? validateOffer(tx.state.offer, supply) : {}), [supply, tx.state.offer]);
   const matches = useMemo(() => (supply ? findMatches(supply) : []), [supply]);
 
   return (
@@ -57,11 +63,19 @@ export default function Exchange() {
           </section>
         </div>
 
+        <section className="panel offer-panel" aria-labelledby="offer-heading" data-testid="section-offer">
+          <span className="panel-kicker">OPTIONAL OFFER TERMS</span>
+          <h2 id="offer-heading" className="panel-title">Pickup, transport and price</h2>
+          <p className="panel-copy">All optional until agreement. Blank means unknown; 0 means free. Invalid values block new demo records. Each new record copies these terms as a snapshot.</p>
+          <OfferFields idPrefix="offer" value={tx.state.offer} onChange={tx.updateOffer} errors={offerErrors} />
+          {!supply && <p className="field-hint">Minimum order is checked against a valid supply quantity.</p>}
+        </section>
+
         <section className="demo-table-wrap" aria-labelledby="demo-heading" data-testid="section-demo-buyers">
           <div className="section-heading compact">
             <div>
               <span className="eyebrow"><span className="eyebrow-dot" /> Sample demand</span>
-              <h2 id="demo-heading">All demo listings</h2>
+              <h2 id="demo-heading">All FICTIONAL DEMO listings</h2>
             </div>
             <p><strong>Fictional demo data.</strong> These are not real companies, orders, specifications or contacts.</p>
           </div>
@@ -71,7 +85,7 @@ export default function Exchange() {
               <tbody>
                 {DEMO_BUYERS.map((b) => (
                   <tr key={b.id} data-testid={`row-demo-buyer-${b.id}`}>
-                    <td><strong>{b.name}</strong><small>{b.industry}</small></td>
+                    <td><strong>{b.name}</strong><small>FICTIONAL DEMO</small><small>{b.industry}</small></td>
                     <td>{b.materials.map(materialLabel).join(', ')}</td>
                     <td>{b.regions.join(', ')}</td>
                     <td className="mono">{b.minimumTonnes} t / {b.demandTonnes} t</td>
@@ -83,13 +97,23 @@ export default function Exchange() {
           </div>
         </section>
 
+        <section className="panel interests" aria-labelledby="tx-heading" data-testid="section-transactions">
+          <span className="panel-kicker">LOCAL TRANSACTIONS · {tx.state.transactions.length}/100</span>
+          <h2 id="tx-heading" className="panel-title">FICTIONAL DEMO transaction journey</h2>
+          <p className="panel-copy">Simulated in this browser: interest, quote, agreement, schedule, receipt, completion. No real company is contacted, nothing is sent, and no sale, delivery or quality is confirmed.</p>
+          {tx.state.transactions.length === 0 ? (
+            <p className="muted-line" data-testid="status-no-transactions">No demo transactions yet. Express interest on a match above.</p>
+          ) : (
+            <div className="tx-list">{tx.state.transactions.map((t) => <TransactionCard key={t.id} tx={t} />)}</div>
+          )}
+        </section>
+
         <section className="panel interests" aria-labelledby="interests-heading" data-testid="section-interests">
           <span className="panel-kicker">LOCAL RECORDS · {state.interests.length}/100</span>
-          <h2 id="interests-heading" className="panel-title">Your recorded interest</h2>
+          <h2 id="interests-heading" className="panel-title">Earlier interest records (legacy)</h2>
           <p className="panel-copy">Kept in this browser only. Nothing was sent to any listing.</p>
-          {state.interests.length >= 100 && <div className="status-message" role="alert" data-testid="status-interest-limit">Limit of 100 local records reached. Reset prototype data to add more.</div>}
           {state.interests.length === 0 ? (
-            <p className="muted-line" data-testid="status-no-interests">No interest recorded yet.</p>
+            <p className="muted-line" data-testid="status-no-interests">No legacy interest records.</p>
           ) : (
             <ul className="interest-list">
               {state.interests.map((i) => (
