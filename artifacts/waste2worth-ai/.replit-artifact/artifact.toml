@@ -1,0 +1,28 @@
+kind = "web"
+previewPath = "/"
+title = "Waste2Worth AI"
+description = "A mobile-friendly sustainability app that helps farmers and collectors identify agricultural and plantation waste from photos and explore potential reuse options."
+version = "1.0.0"
+id = "artifacts/waste2worth-ai"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 25001
+
+[services.development]
+run = "pnpm --filter @workspace/waste2worth-ai run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/waste2worth-ai", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/waste2worth-ai/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "25001"
+BASE_PATH = "/"

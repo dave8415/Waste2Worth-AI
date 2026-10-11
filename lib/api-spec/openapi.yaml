@@ -10,6 +10,8 @@ servers:
 tags:
   - name: health
     description: Health operations
+  - name: waste
+    description: Agricultural and plantation waste analysis
 paths:
   /healthz:
     get:
@@ -24,6 +26,32 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+  /waste/analyze:
+    post:
+      operationId: analyzeWaste
+      tags: [waste]
+      summary: Identify agricultural or plantation waste from a photo
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WasteAnalysisInput"
+      responses:
+        "200":
+          description: Image analysis completed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WasteAnalysis"
+        "400":
+          description: Invalid image data or unsupported image type
+        "413":
+          description: Image is too large
+        "502":
+          description: The analysis provider returned an invalid response
+        "503":
+          description: Gemini is not configured or is temporarily unavailable
 components:
   schemas:
     HealthStatus:
@@ -33,4 +61,39 @@ components:
           type: string
       required:
         - status
+    WasteAnalysisInput:
+      type: object
+      additionalProperties: false
+      properties:
+        imageBase64:
+          type: string
+          minLength: 1
+          maxLength: 8388608
+          description: Base64-encoded image content without a data URL prefix.
+        mimeType:
+          type: string
+          enum: [image/jpeg, image/png, image/webp]
+      required: [imageBase64, mimeType]
+    WasteAnalysis:
+      type: object
+      additionalProperties: false
+      properties:
+        wasteType:
+          type: string
+          description: The likely agricultural or plantation waste type.
+        confidence:
+          type: string
+          enum: [low, medium, high]
+        visibleClues:
+          type: array
+          items:
+            type: string
+        possibleUses:
+          type: array
+          items:
+            type: string
+        limitationNote:
+          type: string
+          description: Must explain that a photo cannot confirm moisture, quality, or energy value and lab testing may be needed.
+      required: [wasteType, confidence, visibleClues, possibleUses, limitationNote]
 
