@@ -1,0 +1,27 @@
+Please simplify and reorganize the Waste2Worth AI interface using screenshot 4 as the design reference. Keep the existing Gemini image analysis, matching, transaction flow, and Impact report working.
+
+Navigation:
+- Add mobile bottom navigation: Home, Market, Scan, Reports, Profile.
+- Make Scan the prominent center action.
+- On desktop, adapt the same menu to a suitable top or side navigation.
+- Put the existing photo identification page under Scan.
+- Put buyer listings and matching results under Market.
+- Put the existing Impact/ESG summary and download under Reports.
+
+Simplify the offer form:
+- Keep only: material, available volume, asking price, short notes, pickup location, and preferred logistics.
+- Use consistent existing units: tonnes and Rp per tonne.
+- For logistics, offer a simple choice: Buyer pickup, Supplier delivers, Third-party transport, or To be agreed.
+- Make location entry simple: province and city/region, with an optional “Use current location” button.
+- Remove the separate pickup pin, exact private address, transport cost, loading/unloading fields, and detailed delivery scheduling from the first form. These can be discussed later if a demo match progresses.
+- Keep a clear Continue or Request a quote button.
+
+Market and demo data:
+- Clearly label buyer listings and matching results as fictional demo data, not real companies or available transactions.
+- Hide the “Earlier interest records (legacy)” section if it is no longer needed.
+- Make it clear that demo interest requests are saved locally and are not sent to real buyers.
+
+Profile:
+- Add simple fields for user role, business type, and location. Do not imply that profile details are shared securely or that accounts are connected to a backend.
+
+Keep the current report limitations. Do not add the “Smart Carbon Sync” figure or any CO2-saving claim from the reference screenshot; this app does not calculate or verify emissions savings. Preserve existing validation and test that the mobile navigation and Identify → Market → Reports flow still work.
