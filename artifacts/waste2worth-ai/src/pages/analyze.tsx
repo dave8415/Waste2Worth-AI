@@ -39,6 +39,10 @@ function prepareImage(file: File): Promise<string> {
 }
 
 function errorText(error: unknown): string {
+  if (error instanceof Error && 'data' in error && error.data && typeof error.data === 'object') {
+    const data = error.data as { error?: unknown };
+    if (typeof data.error === 'string') return data.error;
+  }
   if (error instanceof Error) {
     const message = error.message;
     try {
@@ -52,7 +56,7 @@ function errorText(error: unknown): string {
 }
 
 function isConfigurationError(message: string): boolean {
-  return /gemini|api key|configuration|not configured|service unavailable/i.test(message);
+  return /not configured|rejected the api key|configured gemini model is unavailable/i.test(message);
 }
 
 function AnalysisResult({ result, onContinue }: { result: NonNullable<ReturnType<typeof useAnalyzeWaste>['data']>; onContinue: () => void }) {
@@ -245,7 +249,7 @@ export default function Analyze() {
             {validationError && <div className="status-message" role="alert" data-testid="status-validation-error">{validationError}</div>}
             {requestError && (
               <div className={`status-message ${configError ? 'info' : ''}`} role="alert" data-testid={configError ? 'status-gemini-configuration' : 'status-analysis-error'}>
-                <strong>{configError ? 'Analysis is not configured yet.' : 'We could not complete the analysis.'}</strong><br />
+                <strong>{configError ? 'Analysis needs a setup check.' : 'We could not complete the analysis.'}</strong><br />
                 {message}
               </div>
             )}

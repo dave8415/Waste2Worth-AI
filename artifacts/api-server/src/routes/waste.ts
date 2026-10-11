@@ -1,10 +1,11 @@
 import { Router, type IRouter } from "express";
 import { AnalyzeWasteBody, AnalyzeWasteResponse } from "@workspace/api-zod";
 import { describeGeminiFailure } from "../lib/gemini-error";
+import { geminiErrorMessage } from "../lib/gemini-errors";
 
 const router: IRouter = Router();
 const MAX_IMAGE_BYTES = 6 * 1024 * 1024;
-const GEMINI_MODEL = "gemini-3.8-flash";
+const GEMINI_MODEL = "gemini-3.1-flash-lite";
 const LIMITATION_NOTE =
   "A photo cannot confirm moisture, quality, or energy value. Lab testing may still be needed before choosing a reuse method.";
 
@@ -89,7 +90,7 @@ router.post("/waste/analyze", async (req, res): Promise<void> => {
       {
         method: "POST",
         headers: { "Content-Type": "application/json", "x-goog-api-key": apiKey },
-        signal: AbortSignal.timeout(60_000),
+        signal: AbortSignal.timeout(90_000),
         body: JSON.stringify({
           contents: [
             {
@@ -117,7 +118,6 @@ router.post("/waste/analyze", async (req, res): Promise<void> => {
         }),
       },
     );
-
     if (!upstreamResponse.ok) {
       const errorPayload: unknown = await upstreamResponse.json().catch(() => null);
       const failure = describeGeminiFailure(upstreamResponse.status, errorPayload, apiKey);
@@ -125,7 +125,7 @@ router.post("/waste/analyze", async (req, res): Promise<void> => {
         { model: GEMINI_MODEL, ...failure.diagnostic },
         "Gemini image analysis request failed",
       );
-      res.status(503).json({ error: failure.message });
+      res.status(503).json({ error: geminiErrorMessage(upstreamResponse.status, errorPayload) });
       return;
     }
 

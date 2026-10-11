@@ -24,10 +24,24 @@ The API server reads `GEMINI_API_KEY` only on the server. Never add it to fronte
 
 This app calls Google’s Gemini API directly with your key; it does not use Replit-managed AI billing. Google account quotas and any Google billing settings still apply to your key.
 
+Photo analysis uses `gemini-3.1-flash-lite`. The previous `gemini-2.5-flash` model rejected requests from new users with a model-unavailable response; the provider-recommended `gemini-3.8-flash` returned high-demand errors during verification. Flash-Lite successfully handled the sample photo. The key is sent in a server-only request header, never a browser request or URL. The app does not silently switch models on failure.
+
+
+### If analysis fails
+
+- **Key or permission error:** the app owner should check the server's `GEMINI_API_KEY` secret and its access to the Gemini API.
+- **Request limit or quota reached:** wait before retrying; if it persists, check the Gemini project's quota and billing.
+- **Model unavailable:** update the server to a supported image-analysis model.
+- **Temporary service or connection error:** wait and retry. Requests have a 90-second timeout so the app does not wait indefinitely.
+
+The app shows safe guidance rather than raw provider diagnostics. Every successful result includes the warning that a photo cannot confirm moisture, quality, or energy value and lab testing may still be needed.
+
+Run provider-error regression checks with `node --test artifacts/api-server/tests/gemini-errors.test.ts`.
+
 ### Troubleshooting analysis errors
 
 Restart the API workflow after adding or changing a secret. Its startup log reports only `geminiApiKeyConfigured: true/false`.
-The server uses the Google Gemini REST `v1beta` endpoint with `gemini-3.8-flash`, authenticating through the server-only `x-goog-api-key` header.
+The server uses the Google Gemini REST `v1beta` endpoint with `gemini-3.1-flash-lite`, authenticating through the server-only `x-goog-api-key` header.
 Provider failures log the upstream HTTP status, model, and redacted Google error message; they do not log the key, request headers, or photo.
 The app distinguishes rejected keys, denied API access, missing models, quota/rate limits, and invalid requests.
 It does not automatically retry, switch models, enable billing, or retain uploaded photos.
