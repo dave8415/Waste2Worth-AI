@@ -21,5 +21,11 @@ app.listen(port, (err) => {
     process.exit(1);
   }
 
-  logger.info({ port }, "Server listening");
+  logger.info(
+    {
+      port,
+      geminiApiKeyConfigured: Boolean(process.env.GEMINI_API_KEY?.trim()),
+    },
+    "Server listening",
+  );
 });
