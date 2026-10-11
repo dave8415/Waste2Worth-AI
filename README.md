@@ -12,6 +12,14 @@ The API server reads `GEMINI_API_KEY` only on the server. Never add it to fronte
 
 This app calls Google’s Gemini API directly with your key; it does not use Replit-managed AI billing. Google account quotas and any Google billing settings still apply to your key.
 
+### Troubleshooting analysis errors
+
+Restart the API workflow after adding or changing a secret. Its startup log reports only `geminiApiKeyConfigured: true/false`.
+The server uses the Google Gemini REST `v1beta` endpoint with `gemini-2.5-flash`, authenticating through the server-only `x-goog-api-key` header.
+Provider failures log the upstream HTTP status, model, and redacted Google error message; they do not log the key, request headers, or photo.
+The app distinguishes rejected keys, denied API access, missing models, quota/rate limits, and invalid requests.
+It does not automatically retry, switch models, enable billing, or retain uploaded photos.
+
 ## Run in this workspace
 
 Install workspace dependencies with `pnpm install`. Start the API server and web app using their existing workflows. The web app calls the API at `/api/waste/analyze`.

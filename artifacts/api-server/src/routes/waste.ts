@@ -1,5 +1,6 @@
 import { Router, type IRouter } from "express";
 import { AnalyzeWasteBody, AnalyzeWasteResponse } from "@workspace/api-zod";
+import { describeGeminiFailure } from "../lib/gemini-error";
 
 const router: IRouter = Router();
 const MAX_IMAGE_BYTES = 6 * 1024 * 1024;
@@ -83,10 +84,11 @@ router.post("/waste/analyze", async (req, res): Promise<void> => {
 
   try {
     const upstreamResponse = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${encodeURIComponent(apiKey)}`,
+      "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent",
       {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "x-goog-api-key": apiKey },
+        signal: AbortSignal.timeout(60_000),
         body: JSON.stringify({
           contents: [
             {
@@ -116,10 +118,13 @@ router.post("/waste/analyze", async (req, res): Promise<void> => {
     );
 
     if (!upstreamResponse.ok) {
-      req.log.warn({ status: upstreamResponse.status }, "Gemini image analysis request failed");
-      res.status(503).json({
-        error: "Gemini could not analyze this photo. Check the API key and quota, then try again.",
-      });
+      const errorPayload: unknown = await upstreamResponse.json().catch(() => null);
+      const failure = describeGeminiFailure(upstreamResponse.status, errorPayload, apiKey);
+      req.log.warn(
+        { model: "gemini-2.5-flash", ...failure.diagnostic },
+        "Gemini image analysis request failed",
+      );
+      res.status(503).json({ error: failure.message });
       return;
     }
 
