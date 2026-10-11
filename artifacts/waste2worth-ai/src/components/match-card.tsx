@@ -1,0 +1,73 @@
+import { useState, type FormEvent } from 'react';
+import { Check, CircleAlert, MapPin, Scale } from 'lucide-react';
+import { useBiomass } from '@/lib/biomass-state';
+import type { BuyerMatch, Supply } from '@/lib/biomass';
+
+export function MatchCard({ match, supply }: { match: BuyerMatch; supply: Supply }) {
+  const { recordInterest, state } = useBiomass();
+  const { buyer } = match;
+  const [open, setOpen] = useState(false);
+  const [message, setMessage] = useState('');
+  const [error, setError] = useState('');
+  const [sent, setSent] = useState(false);
+  const full = state.interests.length >= 100;
+  const msgId = `message-${buyer.id}`;
+
+  function submit(e: FormEvent) {
+    e.preventDefault();
+    const len = message.trim().length;
+    if (len < 10 || len > 1000) { setError('Write a message between 10 and 1,000 characters.'); return; }
+    if (full) { setError('You already have 100 local interest records. Reset prototype data to add more.'); return; }
+    const ok = recordInterest(buyer.id, message, supply);
+    if (!ok) { setError('This interest could not be recorded. Check the material and message, or the 100-record limit.'); return; }
+    setSent(true); setOpen(false); setMessage(''); setError('');
+  }
+
+  return (
+    <article className="match-card" data-testid={`card-match-${buyer.id}`}>
+      <div className="match-head">
+        <span className="demo-badge">Fictional demo</span>
+        <span className={`fit-badge ${match.score === 2 && supply.quality !== 'contaminated' ? 'good' : ''}`} data-testid={`text-fit-${buyer.id}`}>
+          {supply.quality === 'contaminated' ? 'Quality review required' : match.score === 2 ? 'Indicative fit' : 'Partial fit'}
+        </span>
+      </div>
+      <h3>{buyer.name}</h3>
+      <p className="match-industry">{buyer.industry} · {buyer.intendedUse}</p>
+      <dl className="match-facts">
+        <div><dt><MapPin size={12} /> Demo area</dt><dd>{buyer.regions.join(', ')}</dd></div>
+        <div><dt><Scale size={12} /> Min lot / demand</dt><dd>{buyer.minimumTonnes} t / {buyer.demandTonnes} t</dd></div>
+        <div><dt>Potential volume</dt><dd data-testid={`text-potential-${buyer.id}`}>{match.potentialTonnes.toLocaleString()} t (indicative)</dd></div>
+      </dl>
+      <ul className="match-reasons">
+        {match.reasons.map((r, i) => {
+          const neg = (i === 1 && !match.regionFits) || (i === 2 && !match.quantityFits) || i === 3;
+          return <li key={r} className={neg ? 'neg' : ''}>{neg ? <CircleAlert size={13} /> : <Check size={13} />}{r}</li>;
+        })}
+      </ul>
+      <p className="match-req"><strong>Requirements:</strong> {buyer.requirements}</p>
+      <p className="match-req">Matching compares material, quantity and region only. Moisture, quality and safe use are not verified.</p>
+      {supply.quality === 'contaminated' && (
+        <div className="warning-callout" data-testid={`status-quality-warning-${buyer.id}`}>
+          <CircleAlert size={16} />
+          <span>Reported contamination: this match is not approval to use or dispatch the material. Identify and assess contaminants before proceeding.</span>
+        </div>
+      )}
+      {sent && <div className="confirm-box" role="status" data-testid={`status-interest-recorded-${buyer.id}`}>Interest recorded locally in this browser. No message was sent and no deal exists.</div>}
+      {open ? (
+        <form onSubmit={submit} className="interest-form" noValidate>
+          <label htmlFor={msgId}>Message for this demo listing</label>
+          <textarea id={msgId} className="field-input" rows={3} value={message} maxLength={1200} aria-invalid={!!error} aria-describedby={error ? `${msgId}-error` : `${msgId}-hint`}
+            onChange={(e) => { setMessage(e.target.value); setError(''); }} placeholder="Describe your material, timing and questions." data-testid={`input-interest-message-${buyer.id}`} />
+          <span id={`${msgId}-hint`} className="field-hint">{message.trim().length}/1000 · saved locally only, not sent</span>
+          {error && <span id={`${msgId}-error`} className="field-error" role="alert" data-testid={`error-interest-${buyer.id}`}>{error}</span>}
+          <div className="interest-actions">
+            <button type="submit" className="button-primary" data-testid={`button-submit-interest-${buyer.id}`}>Record interest locally</button>
+            <button type="button" className="reset-button" onClick={() => { setOpen(false); setError(''); }} data-testid={`button-cancel-interest-${buyer.id}`}>Cancel</button>
+          </div>
+        </form>
+      ) : (
+        <button type="button" className="button-secondary" onClick={() => { setOpen(true); setSent(false); }} data-testid={`button-express-interest-${buyer.id}`}>Express interest (demo)</button>
+      )}
+    </article>
+  );
+}

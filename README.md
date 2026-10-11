@@ -1,6 +1,18 @@
 # Waste2Worth AI
 
-Waste2Worth AI helps farmers and collectors get a cautious first look at agricultural or plantation waste from a photo and explore possible reuse options. It is an MVP: it does not store uploaded images, and photo analysis is not a substitute for laboratory testing.
+Waste2Worth AI helps farmers and collectors identify agricultural or plantation waste, explore fictional buyer demand, and create an unverified ESG summary. It is a focused prototype: photo analysis is not a substitute for laboratory testing.
+
+## Prototype user flow
+
+1. **Identify — `/analyze`:** upload or take a photo for Gemini analysis. Review the likely material, visible clues, possible uses, and photo limitations. Continue with the suggested material and confirm it, or enter a material manually if photo analysis is unavailable.
+2. **Find a use or buyer — `/exchange`:** enter material, available tonnes, city/locality, and a region for the demo matching rules. Optionally enter measured moisture and reported quality. Fictional industry listings are ranked by material, minimum lot, and explicit service region; transport, actual demand, and acceptance are not verified.
+3. **Explore and summarize — `/impact`:** review material-specific use routes and required checks. Enter collected and reused tonnes separately from available stock, intended use, and mass basis. Generate and download an unverified summary of user-reported mass flow with assumptions and missing evidence.
+
+All demand listings are **demo data**, not real companies or orders. Expressing interest records a message only in this browser; it does not contact a buyer, create a deal, or prove reuse. Drafts and demo interest records use browser local storage and can be cleared with the reset action. They are not shared across devices or users. Storage failures fall back to the current session with a visible warning.
+
+Photos are sent to Google for analysis but are not retained by the app or stored in browser persistence. No database, login, payments, email delivery, live marketplace, or managed AI billing has been added.
+
+The ESG summary is not certified, not a compliance report, and not proof of carbon credits. It makes no claim of avoided emissions or verified social benefits. Emissions savings are **not calculated** without a defensible baseline, transport and processing data, emissions factors, and relevant material measurements. An intended use is a plan, not evidence that reuse has happened.
 
 ## Configure Gemini
 
@@ -23,6 +35,12 @@ It does not automatically retry, switch models, enable billing, or retain upload
 ## Run in this workspace
 
 Install workspace dependencies with `pnpm install`. Start the API server and web app using their existing workflows. The web app calls the API at `/api/waste/analyze`.
+
+## Checks
+
+- Frontend: `pnpm --filter @workspace/waste2worth-ai run typecheck`
+- API server: `pnpm --filter @workspace/api-server run typecheck`
+- Matching, validation, use guidance, and impact calculations: `pnpm --filter @workspace/scripts exec tsx --test ../artifacts/waste2worth-ai/tests/biomass.test.ts`
 
 ## Cloud Run deployment notes
 
