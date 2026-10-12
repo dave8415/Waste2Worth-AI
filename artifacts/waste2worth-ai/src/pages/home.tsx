@@ -47,13 +47,13 @@ export default function Home() {
             </Link>
             <Link href="/market" className="step-card" data-testid="step-card-2">
               <span className="step-number">02 / EXCHANGE</span>
-              <h3>Compare with demo demand</h3>
-              <p>Enter quantity and region to see indicative matches from fictional sample listings, and record interest locally. No messages are sent.</p>
+              <h3>Offer your batch</h3>
+              <p>Add quantity and location once. Your offer stays ready for when industry buyers join.</p>
             </Link>
             <Link href="/reports" className="step-card" data-testid="step-card-3">
               <span className="step-number">03 / IMPACT</span>
               <h3>Check uses, record honestly</h3>
-              <p>See checks for each possible route and build an unverified summary from your own collected and reused tonnes.</p>
+              <p>Generate a clear impact estimate from your own recorded quantities and download it as a PDF.</p>
             </Link>
           </div>
         </section>

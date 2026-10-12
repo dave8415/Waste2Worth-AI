@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { inferMaterial, materialLabel, parseSupply, type Supply } from "./biomass";
 import { emptyOffer, type DemoTransaction, type OfferDraft, type Result } from "./transactions";
+import type { ActualQuantities, ImpactEstimationReport, ReportMethod } from "./impact-estimation";
 
 export const assessmentSchema = z.object({
   wasteType: z.string().max(1000), confidence: z.enum(["low", "medium", "high"]),
@@ -19,6 +20,9 @@ export interface MaterialRecord {
   id: string; source: "photo" | "manual"; scan: Assessment; createdAt: string;
   offer: { supply: Supply; terms: OfferDraft; notes: string; submittedAt: string } | null;
   report: { generatedAt: string; sourceVersion: string; text: string } | null;
+  intendedUse?: ReportMethod;
+  actualQuantities?: ActualQuantities;
+  impactReports?: ImpactEstimationReport[];
 }
 export const emptyShortOffer: ShortOffer = {
   quantityTonnes: "", askingPricePerTonneIdr: "", province: "", city: "",

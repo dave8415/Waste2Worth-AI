@@ -52,14 +52,6 @@ export interface DemoBuyer {
   intendedUse: IntendedUse;
   requirements: string;
 }
-/** Entirely fictional demand: not real companies, orders, specifications, or contacts. */
-export const DEMO_BUYERS: DemoBuyer[] = [
-  { id: "demo-heat", name: "Demo Java Process Heat", industry: "Industrial process heat", materials: ["rice-husk", "bagasse", "corn-cob"], regions: ["West Java", "Central Java"], minimumTonnes: 2, demandTonnes: 25, intendedUse: "Biomass fuel", requirements: "Buyer-specific moisture, ash, calorific value, contaminants, and boiler compatibility must be checked." },
-  { id: "demo-char", name: "Demo Circular Biochar", industry: "Biochar producer", materials: ["rice-husk", "coconut-shell", "corn-cob", "palm-kernel-shell"], regions: ["Central Java", "East Java"], minimumTonnes: 0.5, demandTonnes: 8, intendedUse: "Biochar", requirements: "Confirm feedstock cleanliness, drying needs, controlled pyrolysis, and testing for the intended final use." },
-  { id: "demo-shell", name: "Demo Sumatra Thermal", industry: "Industrial biomass user", materials: ["palm-kernel-shell", "coconut-shell"], regions: ["North Sumatra", "Riau"], minimumTonnes: 5, demandTonnes: 40, intendedUse: "Biomass fuel", requirements: "Confirm moisture, oil residues, ash, energy value, and supply consistency with the buyer." },
-  { id: "demo-compost", name: "Demo Soil Resources", industry: "Compost processor", materials: ["empty-fruit-bunch", "bagasse", "rice-husk", "corn-cob"], regions: ["West Java", "Riau", "West Kalimantan"], minimumTonnes: 1, demandTonnes: 15, intendedUse: "Compost / mulch", requirements: "Check contaminants, shredding, decomposition conditions, and suitability for the proposed crop or soil." },
-  { id: "demo-carbon", name: "Demo Shell Carbon Works", industry: "Charcoal and carbon processor", materials: ["coconut-shell", "palm-kernel-shell"], regions: ["East Java", "West Kalimantan"], minimumTonnes: 1, demandTonnes: 12, intendedUse: "Biochar", requirements: "Carbon products require separate processing and testing; feedstock suitability is not a product-quality guarantee." },
-];
 type Validation<T> = { ok: true; value: T } | { ok: false; errors: Record<string, string> };
 export const emptySupply: SupplyDraft = { material: "", quantityTonnes: "", location: "", region: "", moisturePercent: "", quality: "unknown", qualityNotes: "" };
 export const emptyImpact: ImpactDraft = { collectedTonnes: "", reusedTonnes: "", intendedUse: "Biomass fuel", massBasis: "unknown", reportDate: "", transactionId: "" };
@@ -96,8 +88,8 @@ export interface BuyerMatch {
   score: number;
   reasons: string[];
 }
-export function findMatches(supply: Supply): BuyerMatch[] {
-  return DEMO_BUYERS.filter(buyer => buyer.materials.includes(supply.material)).map(buyer => {
+export function findMatches(supply: Supply, buyers: DemoBuyer[] = []): BuyerMatch[] {
+  return buyers.filter(buyer => buyer.materials.includes(supply.material)).map(buyer => {
     const regionFits = buyer.regions.includes(supply.region);
     const quantityFits = supply.quantityTonnes >= buyer.minimumTonnes;
     return {

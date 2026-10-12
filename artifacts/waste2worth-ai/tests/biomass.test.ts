@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import { DEMO_BUYERS } from "./fixtures/buyers";
 import {
   buildImpactSummary, emptyImpact, emptySupply, exploreUses, findMatches,
   inferMaterial, parseSupply, type SupplyDraft,
@@ -37,7 +38,7 @@ test("optional moisture remains unknown rather than inferred; zero and 100 are v
   }
 });
 test("matches exclude incompatible materials and sort by explicit region and quantity rules", () => {
-  const matches = findMatches(supply());
+  const matches = findMatches(supply(), DEMO_BUYERS);
   assert.equal(matches[0].buyer.id, "demo-heat");
   assert.equal(matches[0].score, 2);
   assert.ok(matches.every(match => match.buyer.materials.includes("rice-husk")));
@@ -45,11 +46,11 @@ test("matches exclude incompatible materials and sort by explicit region and qua
   assert.ok(matches.find(match => match.buyer.id === "demo-char")?.reasons.some(reason => reason.includes("Outside")));
 });
 test("region and quantity edits change the matching result; partial lots never exceed demand", () => {
-  const outside = findMatches(supply({ region: "DKI Jakarta", location: "Jakarta", quantityTonnes: "0.1" }));
+  const outside = findMatches(supply({ region: "DKI Jakarta", location: "Jakarta", quantityTonnes: "0.1" }), DEMO_BUYERS);
   assert.ok(outside.every(match => !match.regionFits && !match.quantityFits));
-  const large = findMatches(supply({ quantityTonnes: "100" }));
+  const large = findMatches(supply({ quantityTonnes: "100" }), DEMO_BUYERS);
   assert.ok(large.every(match => match.potentialTonnes <= match.buyer.demandTonnes));
-  assert.deepEqual(findMatches(supply({ material: "other" })), []);
+  assert.deepEqual(findMatches(supply({ material: "other" }), DEMO_BUYERS), []);
 });
 test("all use routes require checks and respond to wet material or reported contamination", () => {
   const normal = exploreUses(supply());

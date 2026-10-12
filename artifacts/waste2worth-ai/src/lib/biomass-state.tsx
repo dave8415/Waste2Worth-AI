@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import { z } from "zod";
-import { DEMO_BUYERS, MATERIALS, USES, buildImpactSummary, emptyImpact, emptySupply, inferMaterial, parseSupply, type Supply, type SupplyDraft, type ImpactDraft } from "./biomass";
+import { MATERIALS, USES, buildImpactSummary, emptyImpact, emptySupply, inferMaterial, parseSupply, type Supply, type SupplyDraft, type ImpactDraft } from "./biomass";
 
 export interface DemoInterest {
   id: string;
@@ -80,13 +80,8 @@ export function BiomassProvider({ children }: { children: ReactNode }) {
       ...previous, identifiedWasteType: wasteType.slice(0, 1000),
       supply: { ...previous.supply, material: inferMaterial(wasteType) }, reportCreatedAt: null,
     })),
-    recordInterest: (buyerId, message, supply) => {
-      const buyer = DEMO_BUYERS.find(item => item.id === buyerId);
-      if (!buyer || !buyer.materials.includes(supply.material) || message.trim().length < 10 || message.trim().length > 1000 || state.interests.length >= 100) return false;
-      const interest: DemoInterest = { id: crypto.randomUUID(), buyerId, buyerName: buyer.name, message: message.trim(), createdAt: new Date().toISOString(), supply };
-      setState(previous => ({ ...previous, interests: [interest, ...previous.interests] }));
-      return true;
-    },
+    // Legacy browser records are retained, but there is no buyer directory to contact.
+    recordInterest: () => false,
     generateReport: () => {
       const supply = parseSupply(state.supply);
       if (!supply.ok || !buildImpactSummary(supply.value, state.impact).ok) return;

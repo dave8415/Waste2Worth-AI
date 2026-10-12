@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import { DEMO_BUYERS } from "./fixtures/buyers";
 import { buildImpactSummary, emptyImpact, emptySupply, parseSupply } from "../src/lib/biomass";
 import { isDate, isValidLocation, PROVINCE_CITIES } from "../src/lib/locations";
 import {
@@ -19,7 +20,7 @@ const offer = {
   estimatedTransportCostIdr: "500000", loadingNeeds: "Supplier forklift", unloadingNeeds: "Buyer unloading crew",
   readyDate: "2026-01-10", deliveryWindowStart: "2026-01-10", deliveryWindowEnd: "2026-01-12",
 };
-function fresh(): DemoTransaction { return value(createDemoTransaction("demo-heat", "Please discuss this demo lot.", supply, offer, "demo-test-id", now)); }
+function fresh(): DemoTransaction { return value(createDemoTransaction("demo-heat", "Please discuss this demo lot.", supply, offer, "demo-test-id", now, DEMO_BUYERS)); }
 function edit(tx: DemoTransaction, patch: Partial<TransactionDraft>) { return patchTransaction(tx, patch, now); }
 function move(tx: DemoTransaction, status: TransactionStatus) { return value(transitionTransaction(tx, status, now)); }
 function agreed() {
@@ -50,10 +51,10 @@ test("interest creates a snapshot, does not send messages, and never accepts inv
   assert.equal(tx.status, "interested"); assert.equal(tx.history.length, 1);
   assert.notEqual(tx.supply, supply);
   assert.equal(tx.draft.actualReusedTonnes, "");
-  assert.equal(createDemoTransaction("real-company", "Not an actual buyer.", supply, offer, "id", now).ok, false);
-  assert.equal(createDemoTransaction("demo-heat", "Hi", supply, offer, "id", now).ok, false);
-  assert.equal(createDemoTransaction("demo-heat", "Please discuss the lot.", { ...supply, location: "Jakarta" }, offer, "id", now).ok, false);
-  assert.equal(createDemoTransaction("demo-heat", "Please discuss the lot.", supply, { ...offer, minimumOrderTonnes: "11" }, "id", now).ok, false);
+  assert.equal(createDemoTransaction("real-company", "Not an actual buyer.", supply, offer, "id", now, DEMO_BUYERS).ok, false);
+  assert.equal(createDemoTransaction("demo-heat", "Hi", supply, offer, "id", now, DEMO_BUYERS).ok, false);
+  assert.equal(createDemoTransaction("demo-heat", "Please discuss the lot.", { ...supply, location: "Jakarta" }, offer, "id", now, DEMO_BUYERS).ok, false);
+  assert.equal(createDemoTransaction("demo-heat", "Please discuss the lot.", supply, { ...offer, minimumOrderTonnes: "11" }, "id", now, DEMO_BUYERS).ok, false);
 });
 test("offer keeps unknown separate from zero and checks pins, ready dates and delivery window", () => {
   assert.deepEqual(validateOffer(emptyOffer, supply), {});

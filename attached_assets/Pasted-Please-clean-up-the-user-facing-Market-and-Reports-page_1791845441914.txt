@@ -1,0 +1,26 @@
+Please clean up the user-facing Market and Reports pages.
+
+MARKET
+- Remove fictional buyer names, “Fictional Demo” labels, fictional demo transaction cards, “Earlier interest records (legacy),” and developer-style explanations from the normal user interface.
+- Do not present sample companies or simulated matches as real buyers.
+- If there are no real buyer listings, show a clean empty state: “Belum ada permintaan dari industri” with a short explanation that listings will appear when buyers join.
+- Keep internal test data only for automated tests; do not show it to app users.
+
+REPORTS
+- Replace the raw text report box and technical “preliminary offer summary” presentation with a clean, mobile-friendly Impact Estimation report page inspired by the attached screenshot.
+- Use the same material record created by Scan and Offer. Prefill material type, scan findings, offer quantity, selected use, and location from that record. Do not make users enter the same information again.
+- Include:
+  1. Material type
+  2. Intended use or processing method
+  3. Offered quantity
+  4. Location
+  5. Scan photo, if available
+  6. Actual collected, received, and reused quantities when recorded
+  7. Generate report and Download PDF buttons
+  8. A simple report history showing date, material, method, quantity, and status
+- Clearly separate “Offered quantity” from actual received and reused quantities.
+- Do not count an offer as collected, received, or reused.
+- Do not show carbon-credit values, CO2 savings, or monetary environmental benefits unless a valid calculation method, source, and required data are available. When unavailable, show “Belum dihitung” or “Data belum cukup.”
+- Keep limitations understandable and brief; remove developer-facing warnings and implementation details from the visible report.
+- Preserve the connected Scan → Offer → Market → Reports flow and existing Gemini integration.
+- Test the complete flow on mobile and verify that report downloads still work. Do not deploy or publish.

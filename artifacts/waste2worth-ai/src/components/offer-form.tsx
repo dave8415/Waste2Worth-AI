@@ -39,7 +39,7 @@ export function ShortOfferForm({ record, onSubmitted, initial }: { record: Mater
       <div className="short-offer-head">
         <span className="panel-kicker">02 — OFFER THIS BATCH</span>
         <h3 id="short-offer-heading">Five details. That’s it.</h3>
-        <p>Material and photo findings are carried over from the scan above. Pickup address, schedule and transport costs come later, only if a demo buyer shows interest.</p>
+        <p>Material and scan findings come from the scan above.</p>
       </div>
       <div className="carried" data-testid="text-offer-carried-material">
         <small>Carried from scan · read-only</small>
@@ -92,8 +92,8 @@ export function ShortOfferForm({ record, onSubmitted, initial }: { record: Mater
         </div>
       </div>
       {(errors.record || errors.material) && <div className="status-message" role="alert" data-testid="status-offer-error"><CircleAlert size={14} /> {errors.record || errors.material}</div>}
-      <p className="demo-line">Submitting saves this offer in this browser only. It does not contact any real buyer. Matches are FICTIONAL DEMO listings.</p>
-      <button type="submit" className="button-primary" disabled={busy} data-testid="button-submit-offer" aria-label="Submit offer and see demo matches in Market"><Send size={15} /> Submit offer · see demo matches</button>
+      <p className="demo-line">Your offer is saved on this device. No buyer is contacted.</p>
+      <button type="submit" className="button-primary" disabled={busy} data-testid="button-submit-offer" ><Send size={15} /> Submit offer</button>
     </form>
   );
 }

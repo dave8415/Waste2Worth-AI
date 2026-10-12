@@ -57,7 +57,7 @@ export function Footer() {
     <footer className="site-footer" data-testid="site-footer">
       <Brand />
       <span>One batch, kept together from photo to report.</span>
-      <span>Photo guidance, not a laboratory result. Demo buyers are fictional. Records stay in this browser.</span>
+      <span>Photo guidance, not a laboratory result. Your records stay on this device.</span>
     </footer>
   );
 }

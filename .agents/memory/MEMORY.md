@@ -1,1 +1,2 @@
 - [Gemini model discovery](gemini-model-discovery.md) — model-list success does not guarantee generation access for a new Google API user.
+- [Public marketplace trust](marketplace-trust.md) — keep synthetic buyers in tests; show an empty Market until real industry listings exist.

@@ -1,4 +1,4 @@
-import { DEMO_BUYERS, USES, parseSupply, type Supply, type IntendedUse } from "./biomass";
+import { USES, parseSupply, type DemoBuyer, type Supply, type IntendedUse } from "./biomass";
 import { isDate, isValidLocation } from "./locations";
 
 export const STATUSES = ["interested", "quote_requested", "agreed", "scheduled", "received", "completed", "cancelled"] as const;
@@ -94,8 +94,8 @@ export function validateOffer(offer: OfferDraft, supply: Supply, required = fals
   }
   return errors;
 }
-export function createDemoTransaction(buyerId: string, message: string, supply: Supply, offer: OfferDraft, id: string, now: string): Result<DemoTransaction> {
-  const buyer = DEMO_BUYERS.find(b => b.id === buyerId && b.materials.includes(supply.material));
+export function createDemoTransaction(buyerId: string, message: string, supply: Supply, offer: OfferDraft, id: string, now: string, buyers: DemoBuyer[] = []): Result<DemoTransaction> {
+  const buyer = buyers.find(b => b.id === buyerId && b.materials.includes(supply.material));
   const errors = validateOffer(offer, supply);
   if (!buyer) errors.buyerId = "Select a compatible FICTIONAL DEMO buyer.";
   if (!isValidLocation(supply.region, supply.location)) errors.location = "Invalid province / city combination.";

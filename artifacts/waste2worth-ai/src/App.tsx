@@ -12,7 +12,6 @@ import Scan from '@/pages/scan';
 import Market from '@/pages/market';
 import Reports from '@/pages/reports';
 import ProfilePage from '@/pages/profile';
-import Impact from '@/pages/impact';
 import { Route, Switch, useLocation, Router as WouterRouter } from 'wouter';
 
 const queryClient = new QueryClient();
@@ -28,7 +27,7 @@ function Router() {
         <Route path="/exchange" component={Market} />
         <Route path="/reports" component={Reports} />
         <Route path="/impact" component={Reports} />
-        <Route path="/reports/legacy" component={Impact} />
+        <Route path="/reports/legacy" component={Reports} />
         <Route path="/profile" component={ProfilePage} />
         <Route component={NotFound} />
       </Switch>

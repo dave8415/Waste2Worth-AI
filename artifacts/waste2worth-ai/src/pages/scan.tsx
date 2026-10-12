@@ -98,7 +98,7 @@ function ManualEntry({ onDone }: { onDone: () => void }) {
 
 export default function Scan() {
   const mutation = useAnalyzeWaste();
-  const { active, startScan } = useJourney();
+  const { active, startScan, rememberPhoto } = useJourney();
   const [, navigate] = useLocation();
   const [photo, setPhoto] = useState<Photo | null>(null);
   const [validationError, setValidationError] = useState('');
@@ -137,6 +137,7 @@ export default function Scan() {
       if (!parsed.success) { setRequestError('The analysis response could not be read. Try another photo or enter the material manually.'); return; }
       const r = startScan(parsed.data, 'photo');
       if (!r.ok) { setRequestError(Object.values(r.errors).join(' ')); return; }
+      rememberPhoto(r.value.id, 'data:image/jpeg;base64,' + photo.imageBase64);
       setFresh(false); setOffering(false);
     } catch (error) { setRequestError(errorText(error)); }
   }

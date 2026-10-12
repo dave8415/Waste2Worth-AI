@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import { DEMO_BUYERS } from "./fixtures/buyers";
 import { assessmentSchema, connectedReportText, prepareConnectedOffer, relatedTransactions, reportVersion, type MaterialRecord, type ShortOffer } from "../src/lib/journey";
 import { createDemoTransaction, recordTransactionReuse, transitionTransaction, type DemoTransaction, type Result } from "../src/lib/transactions";
 
@@ -19,7 +20,7 @@ function record(): MaterialRecord {
 }
 function transaction(): DemoTransaction {
   const r = record();
-  return { ...value(createDemoTransaction("demo-heat", "Demo interest only, no message sent", r.offer!.supply, r.offer!.terms, "tx-1", now)), offerId: r.id };
+  return { ...value(createDemoTransaction("demo-heat", "Demo interest only, no message sent", r.offer!.supply, r.offer!.terms, "tx-1", now, DEMO_BUYERS)), offerId: r.id };
 }
 test("scan findings carry through offer without claiming measured quality or moisture", () => {
   const r = record();

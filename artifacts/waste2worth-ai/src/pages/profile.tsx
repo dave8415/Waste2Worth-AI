@@ -70,7 +70,7 @@ export default function ProfilePage() {
             <button type="button" className="reset-button" onClick={clear} data-testid="button-clear-profile">Clear</button>
           </div>
         </form>
-        <StorageNotice />
+        <StorageNotice allowReset />
       </main>
       <Footer />
     </div>
