@@ -14,7 +14,7 @@ export default function Home() {
             <h1 id="hero-title">See what’s left.<br /><em>See what’s possible.</em></h1>
             <p>Take a photo of an agricultural or plantation leftover. Get a plain-language identification and practical directions for putting it to use.</p>
             <div className="hero-actions">
-              <Link href="/analyze" className="button-primary" data-testid="button-start-analysis">Explore a material <ArrowRight size={16} /></Link>
+              <Link href="/scan" className="button-primary" data-testid="button-start-analysis">Scan a material <ArrowRight size={16} /></Link>
               <a href="#how-it-works" className="text-link" data-testid="link-how-it-works">How it works <ArrowDown size={14} /></a>
             </div>
           </div>
@@ -40,17 +40,17 @@ export default function Home() {
             <p>Built for people who work with crops and plantation materials directly. No specialist vocabulary needed.</p>
           </div>
           <div className="steps-grid">
-            <Link href="/analyze" className="step-card" data-testid="step-card-1">
+            <Link href="/scan" className="step-card" data-testid="step-card-1">
               <span className="step-number">01 / IDENTIFY</span>
               <h3>Name the material</h3>
               <p>Photograph a residue for a likely identification with visible clues, or simply choose it yourself if photo analysis is unavailable.</p>
             </Link>
-            <Link href="/exchange" className="step-card" data-testid="step-card-2">
+            <Link href="/market" className="step-card" data-testid="step-card-2">
               <span className="step-number">02 / EXCHANGE</span>
               <h3>Compare with demo demand</h3>
               <p>Enter quantity and region to see indicative matches from fictional sample listings, and record interest locally. No messages are sent.</p>
             </Link>
-            <Link href="/impact" className="step-card" data-testid="step-card-3">
+            <Link href="/reports" className="step-card" data-testid="step-card-3">
               <span className="step-number">03 / IMPACT</span>
               <h3>Check uses, record honestly</h3>
               <p>See checks for each possible route and build an unverified summary from your own collected and reused tonnes.</p>
@@ -74,7 +74,7 @@ export default function Home() {
             <h2>A photo can only tell part of the story.</h2>
             <p>Images can suggest a material and show visible clues. They cannot confirm moisture, quality, or energy value. Lab testing may still be needed before making technical, safety, or commercial decisions.</p>
           </div>
-          <Link href="/analyze" className="button-primary" data-testid="button-try-analysis">Try a photo <ArrowRight size={16} /></Link>
+          <Link href="/scan" className="button-primary" data-testid="button-try-analysis">Try a photo <ArrowRight size={16} /></Link>
         </section>
       </main>
       <Footer />

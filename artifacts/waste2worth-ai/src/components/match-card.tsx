@@ -2,8 +2,9 @@ import { useState, type FormEvent } from 'react';
 import { Check, CircleAlert, MapPin, Scale } from 'lucide-react';
 import { useTransactions } from '@/lib/transaction-state';
 import type { BuyerMatch, Supply } from '@/lib/biomass';
+import type { OfferDraft } from '@/lib/transactions';
 
-export function MatchCard({ match, supply }: { match: BuyerMatch; supply: Supply }) {
+export function MatchCard({ match, supply, offerId, terms, locked }: { match: BuyerMatch; supply: Supply; offerId?: string; terms?: OfferDraft; locked?: boolean }) {
   const { createTransaction, state } = useTransactions();
   const { buyer } = match;
   const [open, setOpen] = useState(false);
@@ -16,7 +17,7 @@ export function MatchCard({ match, supply }: { match: BuyerMatch; supply: Supply
   function submit(e: FormEvent) {
     e.preventDefault();
     if (full) { setError('Limit of 100 local demo records reached. Reset prototype data to add more.'); return; }
-    const r = createTransaction(buyer.id, message, supply);
+    const r = createTransaction(buyer.id, message, supply, offerId, terms);
     if (!r.ok) { setError(Object.values(r.errors).join(' ')); return; }
     setSent(true); setOpen(false); setMessage(''); setError('');
   }
@@ -50,13 +51,13 @@ export function MatchCard({ match, supply }: { match: BuyerMatch; supply: Supply
           <span>Reported contamination: this match is not approval to use or dispatch the material. Identify and assess contaminants before proceeding.</span>
         </div>
       )}
-      {sent && <div className="confirm-box" role="status" data-testid={`status-interest-recorded-${buyer.id}`}>FICTIONAL DEMO record created locally in this browser. Nothing was sent, no real sale exists. Continue it under Local transactions below.</div>}
+      {sent && <div className="confirm-box" role="status" data-testid={`status-interest-recorded-${buyer.id}`}>FICTIONAL DEMO record created locally in this browser. Nothing was sent, no real sale exists. Continue it under linked demo transactions below.</div>}
       {open ? (
         <form onSubmit={submit} className="interest-form" noValidate>
           <label htmlFor={msgId}>Message for this demo listing</label>
           <textarea id={msgId} className="field-input" rows={3} value={message} maxLength={1200} aria-invalid={!!error} aria-describedby={error ? `${msgId}-error` : `${msgId}-hint`}
             onChange={(e) => { setMessage(e.target.value); setError(''); }} placeholder="Describe your material, timing and questions." data-testid={`input-interest-message-${buyer.id}`} />
-          <span id={`${msgId}-hint`} className="field-hint">{message.trim().length}/1000 · saved locally only, not sent. Your offer terms above are snapshotted.</span>
+          <span id={`${msgId}-hint`} className="field-hint">{message.trim().length}/1000 · saved locally only, not sent. Your offer terms are snapshotted.</span>
           {error && <span id={`${msgId}-error`} className="field-error" role="alert" data-testid={`error-interest-${buyer.id}`}>{error}</span>}
           <div className="interest-actions">
             <button type="submit" className="button-primary" data-testid={`button-submit-interest-${buyer.id}`}>Create local demo record</button>
@@ -64,7 +65,7 @@ export function MatchCard({ match, supply }: { match: BuyerMatch; supply: Supply
           </div>
         </form>
       ) : (
-        <button type="button" className="button-secondary" onClick={() => { setOpen(true); setSent(false); }} data-testid={`button-express-interest-${buyer.id}`}>Express interest (FICTIONAL DEMO)</button>
+        <button type="button" className="button-secondary" disabled={locked} aria-label={locked ? 'Batch already has an active demo transaction' : `Express interest to ${buyer.name}, fictional demo`} onClick={() => { setOpen(true); setSent(false); }} data-testid={`button-express-interest-${buyer.id}`}>Express interest (FICTIONAL DEMO)</button>
       )}
     </article>
   );

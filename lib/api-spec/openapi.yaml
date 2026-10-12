@@ -88,6 +88,16 @@ components:
           type: array
           items:
             type: string
+        visibleQualityIndicators:
+          type: array
+          description: Visible condition clues only, not measured or confirmed material quality.
+          items:
+            type: string
+        possibleContamination:
+          type: array
+          description: Possible visible foreign matter or contamination requiring inspection; absence is not proof of purity.
+          items:
+            type: string
         possibleUses:
           type: array
           items:

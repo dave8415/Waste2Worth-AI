@@ -33,6 +33,8 @@ export const AnalyzeWasteResponse = zod.object({
   "wasteType": zod.string().describe('The likely agricultural or plantation waste type.'),
   "confidence": zod.enum(['low', 'medium', 'high']),
   "visibleClues": zod.array(zod.string()),
+  "visibleQualityIndicators": zod.array(zod.string()).optional().describe('Visible condition clues only, not measured or confirmed material quality.'),
+  "possibleContamination": zod.array(zod.string()).optional().describe('Possible visible foreign matter or contamination requiring inspection; absence is not proof of purity.'),
   "possibleUses": zod.array(zod.string()),
   "limitationNote": zod.string().describe('Must explain that a photo cannot confirm moisture, quality, or energy value and lab testing may be needed.')
 })

@@ -80,7 +80,8 @@ router.post("/waste/analyze", async (req, res): Promise<void> => {
     "List short visual clues that are actually visible in the image, and practical possible reuse options.",
     "Only suggest options appropriate to the apparent material; avoid claiming that a specific use is safe or profitable.",
     "If the image is not clearly agricultural or plantation residue, say that in wasteType and use low confidence.",
-    "Return the required JSON fields: wasteType, confidence (low, medium, or high), visibleClues, possibleUses, limitationNote.",
+    "Return JSON fields: wasteType, confidence (low, medium, or high), visibleClues, visibleQualityIndicators, possibleContamination, possibleUses, limitationNote.",
+    "visibleQualityIndicators lists only observable surface or condition clues, not confirmed material quality. possibleContamination lists possible visible foreign matter, mould-like patches or mixed material only when actually visible, and says these need inspection. Use empty arrays if not assessable. Do not infer purity or absence of contamination from an image.",
     "Do not infer moisture, quality, or energy value from the image. The limitationNote must say that a photo cannot confirm these and lab testing may still be needed.",
   ].join(" ");
 
@@ -108,10 +109,12 @@ router.post("/waste/analyze", async (req, res): Promise<void> => {
                 wasteType: { type: "STRING" },
                 confidence: { type: "STRING", enum: ["low", "medium", "high"] },
                 visibleClues: { type: "ARRAY", items: { type: "STRING" } },
+                visibleQualityIndicators: { type: "ARRAY", items: { type: "STRING" } },
+                possibleContamination: { type: "ARRAY", items: { type: "STRING" } },
                 possibleUses: { type: "ARRAY", items: { type: "STRING" } },
                 limitationNote: { type: "STRING" },
               },
-              required: ["wasteType", "confidence", "visibleClues", "possibleUses", "limitationNote"],
+              required: ["wasteType", "confidence", "visibleClues", "visibleQualityIndicators", "possibleContamination", "possibleUses", "limitationNote"],
             },
             temperature: 0.2,
           },

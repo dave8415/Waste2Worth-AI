@@ -2,13 +2,13 @@ import { createContext, useContext, useEffect, useState, type ReactNode } from "
 import { z } from "zod";
 import { MATERIALS, USES, type Supply } from "./biomass";
 import { clearEvidence, deleteEvidence, saveEvidence } from "./evidence-storage";
-import { STATUSES, createDemoTransaction, emptyOffer, patchTransaction, transitionTransaction, type DemoTransaction, type EvidenceMeta, type OfferDraft, type Result, type TransactionDraft, type TransactionStatus } from "./transactions";
+import { STATUSES, createDemoTransaction, emptyOffer, patchTransaction, recordTransactionReuse, transitionTransaction, type DemoTransaction, type EvidenceMeta, type OfferDraft, type Result, type TransactionDraft, type TransactionStatus } from "./transactions";
 
 const KEY = "waste2worth-transactions-v1";
 const text = z.string().max(1000);
 const offerShape = {
   village: text, pickupPin: text, privatePickupAddress: text,
-  logistics: z.enum(["buyer-pickup", "supplier-delivery", "third-party"]),
+  logistics: z.enum(["buyer-pickup", "supplier-delivery", "third-party", "to-be-agreed"]),
   transportPayer: z.enum(["unknown", "buyer", "supplier", "shared"]),
   estimatedTransportCostIdr: text, loadingNeeds: text, unloadingNeeds: text, readyDate: text,
   deliveryWindowStart: text, deliveryWindowEnd: text, askingPricePerTonneIdr: text,
@@ -29,7 +29,7 @@ const supplySchema = z.object({
 const schema = z.object({
   offer: z.object(offerShape),
   transactions: z.array(z.object({
-    id: text, buyerId: text, buyerName: text, message: text, supply: supplySchema, status: z.enum(STATUSES),
+    id: text, offerId: text.optional(), buyerId: text, buyerName: text, message: text, supply: supplySchema, status: z.enum(STATUSES),
     createdAt: z.string().datetime(), updatedAt: z.string().datetime(), draft: draftSchema,
     history: z.array(z.object({ status: z.enum(STATUSES), at: z.string().datetime() })).max(10),
     evidence: z.array(z.object({ id: text, name: text, type: text, size: z.number().positive().max(5 * 1024 * 1024),
@@ -50,9 +50,10 @@ interface TransactionContextValue {
   state: TransactionState;
   storageWarning: string;
   updateOffer: (patch: Partial<OfferDraft>) => void;
-  createTransaction: (buyerId: string, message: string, supply: Supply) => Result<DemoTransaction>;
+  createTransaction: (buyerId: string, message: string, supply: Supply, offerId?: string, terms?: OfferDraft) => Result<DemoTransaction>;
   updateDraft: (id: string, patch: Partial<TransactionDraft>) => void;
   advance: (id: string, target: TransactionStatus) => Result<DemoTransaction>;
+  recordReuse: (id: string, patch: Pick<TransactionDraft, "actualCollectedTonnes" | "actualReusedTonnes" | "destinationUse">) => Result<DemoTransaction>;
   attachEvidence: (id: string, file: File, category: EvidenceMeta["category"]) => Promise<void>;
   removeEvidence: (id: string, evidenceId: string) => Promise<void>;
   resetTransactions: () => Promise<void>;
@@ -70,9 +71,11 @@ export function TransactionProvider({ children }: { children: ReactNode }) {
   const value: TransactionContextValue = {
     state, storageWarning,
     updateOffer: patch => setState(prev => ({ ...prev, offer: { ...prev.offer, ...patch } })),
-    createTransaction: (buyerId, message, supply) => {
+    createTransaction: (buyerId, message, supply, offerId, terms) => {
       if (state.transactions.length >= 100) return { ok: false, errors: { limit: "Limit of 100 local demo records reached." } };
-      const result = createDemoTransaction(buyerId, message, supply, state.offer, crypto.randomUUID(), new Date().toISOString());
+      if (offerId && state.transactions.some(tx => tx.offerId === offerId && tx.status !== "cancelled")) return { ok: false, errors: { offer: "This offer already has a demo transaction. Continue that record; availability is not reserved twice." } };
+      const result = createDemoTransaction(buyerId, message, supply, terms ?? state.offer, crypto.randomUUID(), new Date().toISOString());
+      if (result.ok && offerId) result.value.offerId = offerId;
       if (result.ok) setState(prev => ({ ...prev, transactions: [result.value, ...prev.transactions] }));
       return result;
     },
@@ -81,6 +84,13 @@ export function TransactionProvider({ children }: { children: ReactNode }) {
       const tx = state.transactions.find(t => t.id === id);
       if (!tx) return { ok: false, errors: { id: "Demo record not found." } };
       const result = transitionTransaction(tx, target, new Date().toISOString());
+      if (result.ok) replace(result.value);
+      return result;
+    },
+    recordReuse: (id, patch) => {
+      const tx = state.transactions.find(t => t.id === id);
+      if (!tx) return { ok: false, errors: { id: "Demo record not found." } };
+      const result = recordTransactionReuse(tx, patch, new Date().toISOString());
       if (result.ok) replace(result.value);
       return result;
     },

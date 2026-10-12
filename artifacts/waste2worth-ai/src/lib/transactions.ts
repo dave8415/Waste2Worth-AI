@@ -11,7 +11,7 @@ export interface OfferDraft {
   village: string;
   pickupPin: string;
   privatePickupAddress: string;
-  logistics: "buyer-pickup" | "supplier-delivery" | "third-party";
+  logistics: "buyer-pickup" | "supplier-delivery" | "third-party" | "to-be-agreed";
   transportPayer: "unknown" | "buyer" | "supplier" | "shared";
   estimatedTransportCostIdr: string;
   loadingNeeds: string;
@@ -46,6 +46,7 @@ export interface EvidenceMeta {
   attachedAt: string;
 }
 export interface DemoTransaction {
+  offerId?: string;
   id: string; buyerId: string; buyerName: string; message: string; supply: Supply;
   status: TransactionStatus; createdAt: string; updatedAt: string;
   draft: TransactionDraft; evidence: EvidenceMeta[];
@@ -71,7 +72,7 @@ export function validateOffer(offer: OfferDraft, supply: Supply, required = fals
   }
   const minimum = number(offer.minimumOrderTonnes);
   if ((required || offer.minimumOrderTonnes.trim()) && (minimum === null || minimum <= 0 || minimum > supply.quantityTonnes)) errors.minimumOrderTonnes = "Minimum order must be positive and no greater than available tonnes.";
-  if (!["buyer-pickup", "supplier-delivery", "third-party"].includes(offer.logistics)) errors.logistics = "Choose a logistics option.";
+  if (!["buyer-pickup", "supplier-delivery", "third-party", "to-be-agreed"].includes(offer.logistics) || (required && offer.logistics === "to-be-agreed")) errors.logistics = "Agree a logistics option before confirming terms.";
   if (!["unknown", "buyer", "supplier", "shared"].includes(offer.transportPayer) || (required && offer.transportPayer === "unknown")) errors.transportPayer = "Agree who pays transport.";
   if (!["negotiable", "fixed"].includes(offer.pricing)) errors.pricing = "Choose fixed or negotiable.";
   for (const field of ["readyDate", "deliveryWindowStart", "deliveryWindowEnd"] as const) {
@@ -164,6 +165,22 @@ export function patchTransaction(tx: DemoTransaction, patch: Partial<Transaction
   // Editing quote terms voids prior consent; new consent must follow the edits.
   const termsEdited = Object.keys(filtered).some(key => key !== "buyerAgreed" && key !== "supplierAgreed" && key !== "cancellationReason");
   return { ...tx, updatedAt: now, draft: { ...tx.draft, ...(termsEdited && (tx.status === "interested" || tx.status === "quote_requested") ? { buyerAgreed: false, supplierAgreed: false } : {}), ...filtered } };
+}
+export function recordTransactionReuse(
+  tx: DemoTransaction,
+  patch: Pick<TransactionDraft, "actualCollectedTonnes" | "actualReusedTonnes" | "destinationUse">,
+  now: string,
+): Result<DemoTransaction> {
+  if (!["received", "completed"].includes(tx.status)) return { ok: false, errors: { status: "Record receipt before updating actual reuse. Cancelled records cannot add reuse." } };
+  const collected = number(patch.actualCollectedTonnes), reused = number(patch.actualReusedTonnes);
+  const received = number(tx.draft.receivedTonnes);
+  const errors: Record<string, string> = {};
+  if (collected === null || collected < 0 || collected > tx.supply.quantityTonnes) errors.actualCollectedTonnes = "Enter collected tonnes between 0 and offered availability.";
+  if (reused === null || reused < 0 || collected === null || reused > collected || received === null || reused > received) errors.actualReusedTonnes = "Enter reused tonnes no greater than collected or received weight (0 means none reused).";
+  if (!(USES as readonly string[]).includes(patch.destinationUse)) errors.destinationUse = "Choose a destination use.";
+  if (tx.draft.qualityCheck === "rejected" && reused !== null && reused > 0) errors.actualReusedTonnes = "Resolve the rejected quality outcome before claiming reuse of this batch.";
+  if (Object.keys(errors).length) return { ok: false, errors };
+  return { ok: true, value: { ...tx, updatedAt: now, draft: { ...tx.draft, ...patch } } };
 }
 export function pickupForBuyer(tx: DemoTransaction): { area: string; address: string | null; pin: string | null; released: boolean } {
   const consent = tx.draft.buyerAgreed && tx.draft.supplierAgreed && ["agreed", "scheduled", "received", "completed"].includes(tx.status);

@@ -1,0 +1,37 @@
+Please redesign the existing Waste2Worth AI app so the user completes one connected journey, instead of moving between disconnected forms and pages.
+
+MAIN USER JOURNEY
+1. User opens Scan and uploads or takes a photo of waste.
+2. Gemini analyzes the photo and shows the material classification, confidence, visible quality indicators, possible contamination, and suitable potential uses.
+3. On the same result screen, show a clear “Offer this material” button.
+4. When clicked, open a short offer form that is already filled with the scan result. Do not ask the user to enter the material type and scan findings again.
+5. After submitting, show the offer in Market with its demo matches and offer status.
+6. Once the material is received and reuse is recorded, allow the user to generate or update the ESG/Impact report from that same offer record.
+
+OFFER FORM
+Keep only:
+- Available quantity
+- Asking price
+- Province and city/region
+- Logistics choice: Buyer pickup, Supplier delivers, Third-party transport, or To be agreed
+- Short notes
+Use the existing consistent units: tonnes and IDR per tonne.
+
+Remove detailed transport fields from the first offer form, including pickup coordinates, private address, separate transport cost, loading/unloading needs, and multiple delivery dates. If needed, collect scheduling and delivery details later, after a buyer shows interest.
+
+CONNECTED DATA
+Use one unique record for the scanned material and carry it through the whole flow:
+Scan result → Offer → Market match → Transaction → Impact/ESG report.
+The offer should retain its original scan classification and quality notes. Do not create duplicate or disconnected records when moving between steps.
+
+REPORTING
+After an offer is submitted, allow a clearly labeled preliminary report based on the quantity offered.
+Do not count offered quantity as collected, received, or reused. Update actual impact only when the user records received weight and reused quantity. Keep missing information marked as unknown, and preserve the existing caveat that emissions savings are not calculated or verified.
+
+NAVIGATION
+Keep Home, Market, Scan, Reports, and Profile. The connected journey should guide users from Scan to Offer, then Market and Reports. Do not make the user search for the next step in a separate menu.
+
+DEMO LIMITS
+Clearly label sample buyer listings and matches as fictional demo data. Make clear that submitting an offer does not contact a real buyer and that records are stored locally in this prototype.
+
+Preserve the existing Gemini integration and API key handling. Test the complete mobile journey from photo scan through offer submission and report generation. Do not deploy or publish.

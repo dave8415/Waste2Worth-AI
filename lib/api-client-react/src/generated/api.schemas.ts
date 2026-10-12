@@ -42,6 +42,10 @@ export interface WasteAnalysis {
   wasteType: string;
   confidence: WasteAnalysisConfidence;
   visibleClues: string[];
+  /** Visible condition clues only, not measured or confirmed material quality. */
+  visibleQualityIndicators?: string[];
+  /** Possible visible foreign matter or contamination requiring inspection; absence is not proof of purity. */
+  possibleContamination?: string[];
   possibleUses: string[];
   /** Must explain that a photo cannot confirm moisture, quality, or energy value and lab testing may be needed. */
   limitationNote: string;

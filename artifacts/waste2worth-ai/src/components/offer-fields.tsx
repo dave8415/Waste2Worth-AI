@@ -34,7 +34,7 @@ export function OfferFields({ value: v, onChange, errors = {}, idPrefix, disable
             onChange={(e) => onChange({ privatePickupAddress: e.target.value })} data-testid={`input-${idPrefix}-privatePickupAddress`} />) })}
         {F({ k: 'logistics', label: 'Logistics', children: (
           <select className="field-input" id={id('logistics')} disabled={disabled} value={v.logistics} onChange={(e) => onChange({ logistics: e.target.value as OfferDraft['logistics'] })} data-testid={`select-${idPrefix}-logistics`}>
-            <option value="buyer-pickup">Buyer picks up</option><option value="supplier-delivery">Supplier delivers</option><option value="third-party">Third-party transport</option>
+            <option value="buyer-pickup">Buyer picks up</option><option value="supplier-delivery">Supplier delivers</option><option value="third-party">Third-party transport</option><option value="to-be-agreed">To be agreed (must be resolved before agreement)</option>
           </select>) })}
         {F({ k: 'transportPayer', label: 'Transport paid by', children: (
           <select className="field-input" id={id('transportPayer')} disabled={disabled} value={v.transportPayer} onChange={(e) => onChange({ transportPayer: e.target.value as OfferDraft['transportPayer'] })} data-testid={`select-${idPrefix}-transportPayer`}>
