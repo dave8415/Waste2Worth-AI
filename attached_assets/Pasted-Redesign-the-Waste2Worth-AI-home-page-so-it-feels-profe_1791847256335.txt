@@ -1,0 +1,35 @@
+Redesign the Waste2Worth AI home page so it feels professional, welcoming, and connected to real agricultural work. Use the attached photos as actual website assets, not just as visual references.
+
+Before updating the page:
+- Save the attached farmer photo, rice husk photo, and rice straw photo inside:
+  artifacts/waste2worth-ai/public/images/
+- Create the images folder if it does not exist.
+- Use clear filenames such as farmer-field, rice-husk, and rice-straw, keeping each image’s correct file extension.
+- Use the saved images in the website with paths such as /images/farmer-field.jpg. Adjust the extension if the uploaded file is not JPG.
+
+DESIGN
+- Remove the current decorative illustrations of the sun, hills, and plant. They make the page feel childish.
+- Use the real farmer photo prominently in the hero section. Show the rice husk and rice straw photos in supporting sections.
+- Keep the layout clean, mature, and easy to understand, with natural green and warm neutral colors, readable text, and good spacing.
+- Do not stretch, distort, or heavily filter the photos. Use suitable crops and add descriptive alt text.
+- Do not use generated images, stock photos, or cartoon illustrations. If an uploaded image is missing, leave a clean neutral image area and tell me which photo is missing.
+- Make the page responsive on mobile and desktop.
+
+HOME PAGE MESSAGE
+
+Headline:
+“A better use for agricultural waste”
+
+Main message:
+“We’re a team building a simple AI tool to help farmers identify agricultural waste and find practical ways to reuse it. Our goal is to reduce waste and create new opportunities for local communities.”
+
+Add a short section showing the simple process:
+1. Take a photo of agricultural waste.
+2. Get an initial identification and practical reuse suggestions.
+3. Explore possible uses and record what happens to the material.
+
+Keep the wording simple and human. Make the purpose clear: agricultural waste such as rice husk and rice straw is often left unused, and Waste2Worth AI helps farmers identify it and explore practical ways to use it.
+
+Keep the existing navigation and make “Scan material” the main call to action. Preserve the working Scan, Market, Reports, and Profile features and the connected Scan → Offer → Market → Reports flow.
+
+Do not add fictional buyer names, unsupported carbon-savings figures, carbon-credit claims, or claims that environmental impact has been independently verified. Do not change the Gemini integration or its API key handling. After the redesign, check the home page on mobile and desktop and confirm that all three uploaded photos load correctly. Do not publish or deploy the app.

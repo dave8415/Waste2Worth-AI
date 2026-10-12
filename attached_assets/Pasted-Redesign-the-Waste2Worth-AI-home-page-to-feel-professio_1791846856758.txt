@@ -1,0 +1,32 @@
+Redesign the Waste2Worth AI home page to feel professional, warm, and grounded in real agricultural work, in the spirit of Limbahguna.
+
+The current home page feels childish because it uses decorative illustrations of hills, a sun, and a plant. Remove those illustrations. Use the real photos I upload to Replit instead. Do not generate or search for replacement images.
+
+Use these image paths as placeholders and update them if my uploaded filenames differ:
+- /images/farmer-field.jpg
+- /images/rice-husk.jpg
+- /images/rice-straw.jpg
+
+HOME PAGE
+- Create a clean, professional hero section with a real photo of a farmer in an agricultural setting, ideally with rice straw or crop residue visible.
+- Use real photos of unused rice husk and rice straw in the supporting sections.
+- Do not stretch, distort, or heavily filter the photos. Use a natural crop and add useful alt text.
+- Keep the existing green and warm neutral brand palette, but make the design look like a credible sustainability startup rather than a children’s website.
+- Keep the existing navigation and a clear “Scan material” button.
+
+Use this message as the main content:
+
+Headline:
+“Turning agricultural waste into new opportunities”
+
+Supporting text:
+“We’re a team building a simple AI tool to help farmers identify agricultural waste and find practical ways to reuse it. Our goal is to reduce waste and create new opportunities for local communities.”
+
+Add a short section explaining the journey in plain language:
+1. Take a photo of agricultural waste.
+2. Get an initial identification and practical reuse suggestions.
+3. Explore possible buyers or uses and record the material’s impact.
+
+Keep the language simple and human. Avoid technical AI terms, exaggerated environmental claims, fictional buyer logos, and claims that the app has already created verified impact.
+
+If a photo has not been uploaded yet, keep its image area clean and neutral—do not replace it with a cartoon illustration. Make sure the page works well on mobile and desktop. Preserve the existing Scan, Market, Reports, and Profile features.

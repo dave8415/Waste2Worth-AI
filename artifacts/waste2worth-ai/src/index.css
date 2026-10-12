@@ -923,3 +923,45 @@ a.step-card:hover h3 { color:var(--leaf); }
   .ie-split { grid-template-columns:1fr; }
   .ie-controls .ie-actions-row > * { flex:1; }
 }
+
+/* ---- Home (photo redesign) — scoped to .hv ---- */
+.hv .hv-hero { display:grid; grid-template-columns:1fr 1fr; gap:48px; align-items:center; padding:28px 0 8px; }
+.hv .hv-hero-copy h1 { margin:18px 0 20px; font:500 clamp(40px,5.2vw,68px)/1.03 var(--app-font-serif); letter-spacing:-2px; color:#234231; max-width:560px; }
+.hv .hv-hero-copy p { max-width:500px; color:#4f6354; font-size:17px; line-height:1.7; margin:0; }
+.hv .hv-actions { display:flex; align-items:center; gap:22px; margin-top:32px; flex-wrap:wrap; }
+.hv .hv-cta { padding:15px 24px; font-size:14px; }
+.hv .hv-cta:focus-visible, .hv .hv-link:focus-visible { outline:2px solid var(--leaf); outline-offset:3px; }
+.hv .hv-link { transition:color .2s; }
+.hv .hv-link:hover { color:var(--leaf); }
+.hv figure { margin:0; }
+.hv .hv-hero-photo { border-radius:24px; overflow:hidden; background:#e4e2d4; position:relative; aspect-ratio:1/1; }
+.hv .hv-hero-photo img { width:100%; height:100%; object-fit:cover; object-position:60% 55%; display:block; }
+.hv .hv-hero-photo figcaption { position:absolute; left:14px; right:14px; bottom:14px; background:#f8f5e8eb; color:#3e5344; font-size:12px; line-height:1.5; padding:10px 14px; border-radius:12px; }
+.hv .hv-photo-missing { width:100%; height:100%; min-height:220px; display:grid; place-items:center; background:#e7e5d8; color:#7b8276; font-size:12px; text-align:center; padding:16px; }
+.hv .hv-steps { margin-top:80px; padding-top:36px; border-top:1px solid var(--line); display:grid; grid-template-columns:.7fr 2fr; gap:40px; }
+.hv .hv-steps h2, .hv .hv-why h2 { font:500 clamp(28px,3.4vw,40px)/1.1 var(--app-font-serif); letter-spacing:-1px; margin:10px 0 0; }
+.hv .hv-steps ol { list-style:none; margin:0; padding:0; display:grid; grid-template-columns:repeat(3,1fr); gap:16px; }
+.hv .hv-steps li { background:#fbfaf4; border:1px solid var(--line); border-radius:18px; padding:22px; display:flex; flex-direction:column; gap:12px; color:var(--leaf); transition:border-color .2s; }
+.hv .hv-steps li:hover { border-color:#b4c4a7; }
+.hv .hv-step-num { font:500 12px var(--app-font-mono); color:#a56a4c; }
+.hv .hv-steps li p { margin:0; color:#3f5345; font-size:15px; line-height:1.55; }
+.hv .hv-why { margin-top:88px; display:grid; grid-template-columns:.85fr 1.15fr; gap:48px; align-items:start; }
+.hv .hv-why-copy p { color:#536858; font-size:15px; line-height:1.75; margin:16px 0 0; max-width:440px; }
+.hv .hv-why-photos { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+.hv .hv-why-photos figure > img, .hv .hv-why-photos .hv-photo-missing { width:100%; aspect-ratio:4/5; object-fit:cover; border-radius:18px; display:block; background:#e4e2d4; }
+.hv .hv-why-photos figure:nth-child(2) > img { object-position:42% 50%; }
+.hv .hv-why-photos figcaption { margin-top:10px; color:#627064; font-size:13px; line-height:1.55; }
+.hv .hv-why-photos figcaption strong { display:block; color:var(--ink); font:600 16px var(--app-font-serif); margin-bottom:2px; }
+.hv .hv-trust { margin-top:72px; }
+@media (max-width:860px) {
+  .hv .hv-hero, .hv .hv-steps, .hv .hv-why { grid-template-columns:1fr; gap:24px; }
+  .hv .hv-hero-photo { aspect-ratio:4/3; }
+  .hv .hv-steps ol { grid-template-columns:1fr; }
+  .hv .hv-steps, .hv .hv-why { margin-top:56px; }
+}
+@media (max-width:480px) {
+  .hv .hv-hero-copy h1 { font-size:40px; letter-spacing:-1.2px; }
+  .hv .hv-hero-copy p { font-size:15px; }
+  .hv .hv-why-photos { grid-template-columns:1fr; }
+  .hv .hv-why-photos figure > img { aspect-ratio:16/10; }
+}

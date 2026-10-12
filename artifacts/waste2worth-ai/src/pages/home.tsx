@@ -1,80 +1,103 @@
+import { useState } from 'react';
 import { Link } from 'wouter';
-import { ArrowDown, ArrowRight, Leaf, Sprout } from 'lucide-react';
+import { ArrowDown, ArrowRight, Camera, ClipboardCheck, ScanSearch } from 'lucide-react';
 import { Header, Footer } from '@/components/layout';
 import { StorageNotice } from '@/components/storage-notice';
+
+const img = (name: string) => `${import.meta.env.BASE_URL}images/${name}`;
+
+function Photo({ src, alt, testId, eager = false, missingLabel }: { src: string; alt: string; testId: string; eager?: boolean; missingLabel: string }) {
+  const [failed, setFailed] = useState(false);
+  if (failed) {
+    return <div className="hv-photo-missing" role="img" aria-label={`${missingLabel} photo is missing`} data-testid={`${testId}-missing`}>{missingLabel} photo missing</div>;
+  }
+  return (
+    <img
+      src={src}
+      alt={alt}
+      loading={eager ? 'eager' : 'lazy'}
+      decoding={eager ? 'sync' : 'async'}
+      fetchPriority={eager ? 'high' : undefined}
+      onError={() => setFailed(true)}
+      data-testid={testId}
+    />
+  );
+}
+
+const STEPS = [
+  { icon: Camera, text: 'Take a photo of agricultural waste.' },
+  { icon: ScanSearch, text: 'Get an initial identification and practical reuse suggestions.' },
+  { icon: ClipboardCheck, text: 'Explore possible uses and record what happens to the material.' },
+];
 
 export default function Home() {
   return (
     <div className="app-shell">
       <Header />
-      <main className="home-main">
-        <section className="hero" aria-labelledby="hero-title" data-testid="home-hero">
-          <div className="hero-copy">
-            <span className="eyebrow"><span className="eyebrow-dot" /> A clearer next step for crop residue</span>
-            <h1 id="hero-title">See what’s left.<br /><em>See what’s possible.</em></h1>
-            <p>Take a photo of an agricultural or plantation leftover. Get a plain-language identification and practical directions for putting it to use.</p>
-            <div className="hero-actions">
-              <Link href="/scan" className="button-primary" data-testid="button-start-analysis">Scan a material <ArrowRight size={16} /></Link>
-              <a href="#how-it-works" className="text-link" data-testid="link-how-it-works">How it works <ArrowDown size={14} /></a>
+      <main className="home-main hv">
+        <section className="hv-hero" aria-labelledby="hero-title" data-testid="home-hero">
+          <div className="hv-hero-copy">
+            <span className="eyebrow"><span className="eyebrow-dot" /> Waste2Worth AI</span>
+            <h1 id="hero-title">A better use for agricultural waste</h1>
+            <p>We’re a team building a simple AI tool to help farmers identify agricultural waste and find practical ways to reuse it. Our goal is to reduce waste and create new opportunities for local communities.</p>
+            <div className="hv-actions">
+              <Link href="/scan" className="button-primary hv-cta" data-testid="button-start-analysis"><Camera size={16} /> Scan material</Link>
+              <a href="#how-it-works" className="text-link hv-link" data-testid="link-how-it-works">How it works <ArrowDown size={14} /></a>
             </div>
           </div>
-          <div className="hero-art" aria-label="Illustration of a harvested field and grain stalks" role="img" data-testid="hero-field-illustration">
-            <div className="sun-disc" />
-            <div className="crop-stalk" />
-            <div className="land-line" />
-            <div className="land-line two" />
-            <div className="land-line three" />
-            <div className="field-note">
-              <span className="field-note-icon"><Leaf size={17} /></span>
-              <span><strong>Left in the field?</strong><small>There may be another use.</small></span>
-            </div>
-          </div>
+          <figure className="hv-hero-photo">
+            <Photo src={img('farmer-field.jpg')} eager testId="img-hero-farmer" missingLabel="Farmer" alt="A farmer in a yellow shirt raking harvested rice spread out to dry on a paved village courtyard" />
+            <figcaption>Drying the harvest. What is left after milling is where the next question starts.</figcaption>
+          </figure>
         </section>
 
-        <section className="home-section" id="how-it-works" data-testid="how-it-works">
-          <div className="section-heading">
-            <div>
-              <span className="eyebrow"><span className="eyebrow-dot" /> From photo to possibility</span>
-              <h2>A useful starting point,<br />not another complicated tool.</h2>
-            </div>
-            <p>Built for people who work with crops and plantation materials directly. No specialist vocabulary needed.</p>
+        <section className="hv-steps" id="how-it-works" data-testid="how-it-works">
+          <div className="hv-steps-head">
+            <span className="eyebrow"><span className="eyebrow-dot" /> How it works</span>
+            <h2>Three simple steps</h2>
           </div>
-          <div className="steps-grid">
-            <Link href="/scan" className="step-card" data-testid="step-card-1">
-              <span className="step-number">01 / IDENTIFY</span>
-              <h3>Name the material</h3>
-              <p>Photograph a residue for a likely identification with visible clues, or simply choose it yourself if photo analysis is unavailable.</p>
-            </Link>
-            <Link href="/market" className="step-card" data-testid="step-card-2">
-              <span className="step-number">02 / EXCHANGE</span>
-              <h3>Offer your batch</h3>
-              <p>Add quantity and location once. Your offer stays ready for when industry buyers join.</p>
-            </Link>
-            <Link href="/reports" className="step-card" data-testid="step-card-3">
-              <span className="step-number">03 / IMPACT</span>
-              <h3>Check uses, record honestly</h3>
-              <p>Generate a clear impact estimate from your own recorded quantities and download it as a PDF.</p>
-            </Link>
-          </div>
+          <ol>
+            {STEPS.map((s, i) => {
+              const Icon = s.icon;
+              return (
+                <li key={i} data-testid={`step-card-${i + 1}`}>
+                  <span className="hv-step-num">{String(i + 1).padStart(2, '0')}</span>
+                  <Icon size={20} strokeWidth={1.7} aria-hidden="true" />
+                  <p>{s.text}</p>
+                </li>
+              );
+            })}
+          </ol>
         </section>
 
-        <section className="material-strip" aria-label="Examples of materials" data-testid="materials-strip">
-          <span className="material-title">From harvest to next use.</span>
-          <span className="material-chip"><Sprout size={16} /> Straw & stalks</span>
-          <span className="material-chip"><Leaf size={16} /> Husk & shell</span>
-          <span className="material-chip"><Sprout size={16} /> Palm residues</span>
-          <span className="material-chip"><Leaf size={16} /> Prunings & fronds</span>
+        <section className="hv-why" aria-labelledby="why-title" data-testid="section-why">
+          <div className="hv-why-copy">
+            <span className="eyebrow"><span className="eyebrow-dot" /> Why it matters</span>
+            <h2 id="why-title">Useful material is often left unused</h2>
+            <p>After harvest and milling, materials like rice husk and rice straw pile up. Some sits in sheds, some is left in the field, and some is burned to clear space.</p>
+            <p>Waste2Worth AI helps you name what you have and look at practical ways it could be used, so the next step is a decision rather than a guess.</p>
+          </div>
+          <div className="hv-why-photos">
+            <figure>
+              <Photo src={img('rice-husk.jpg')} testId="img-rice-husk" missingLabel="Rice husk" alt="A large pile of rice husk stored under a metal-roofed shed, with filled sacks stacked to one side" />
+              <figcaption><strong>Rice husk</strong> Collected after milling, often stored in bulk with no planned use.</figcaption>
+            </figure>
+            <figure>
+              <Photo src={img('rice-straw.jpg')} testId="img-rice-straw" missingLabel="Rice straw" alt="Rice straw burning in a harvested field, with thick smoke rising against an evening sky" />
+              <figcaption><strong>Rice straw</strong> Frequently burned in the field after harvest. This is the problem we want to help with.</figcaption>
+            </figure>
+          </div>
         </section>
 
         <StorageNotice />
 
-        <section className="trust-band" data-testid="photo-limitations">
+        <section className="trust-band hv-trust" data-testid="photo-limitations">
           <div>
-            <span className="eyebrow"><span className="eyebrow-dot" /> Grounded by design</span>
+            <span className="eyebrow"><span className="eyebrow-dot" /> Honest about limits</span>
             <h2>A photo can only tell part of the story.</h2>
-            <p>Images can suggest a material and show visible clues. They cannot confirm moisture, quality, or energy value. Lab testing may still be needed before making technical, safety, or commercial decisions.</p>
+            <p>A photo can suggest what a material is and show visible clues. It cannot confirm moisture, quality, or energy value. Testing may still be needed before technical, safety, or commercial decisions.</p>
           </div>
-          <Link href="/scan" className="button-primary" data-testid="button-try-analysis">Try a photo <ArrowRight size={16} /></Link>
+          <Link href="/scan" className="button-primary hv-cta" data-testid="button-try-analysis">Scan material <ArrowRight size={16} /></Link>
         </section>
       </main>
       <Footer />
