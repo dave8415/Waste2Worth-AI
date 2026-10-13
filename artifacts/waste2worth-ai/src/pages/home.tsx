@@ -32,7 +32,7 @@ const STEPS = [
 
 export default function Home() {
   return (
-    <div className="app-shell">
+    <div className="app-shell home-inter">
       <Header />
       <main className="home-main hv">
         <section className="hv-hero" aria-labelledby="hero-title" data-testid="home-hero">

@@ -965,3 +965,66 @@ a.step-card:hover h3 { color:var(--leaf); }
   .hv .hv-why-photos { grid-template-columns:1fr; }
   .hv .hv-why-photos figure > img { aspect-ratio:16/10; }
 }
+
+/* Home-only typography; shared pages keep their existing font tokens. */
+.home-inter {
+  --app-font-sans: 'Inter', sans-serif;
+  --app-font-serif: 'Inter', sans-serif;
+  --app-font-mono: 'Inter', sans-serif;
+  font-family: var(--app-font-sans);
+}
+.home-inter .hv-hero-copy h1 {
+  font-size: clamp(38px, 4.4vw, 60px);
+  font-weight: 700;
+  line-height: 1.12;
+  letter-spacing: -0.035em;
+}
+.home-inter .hv-steps h2,
+.home-inter .hv-why h2 {
+  font-size: clamp(28px, 3vw, 36px);
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: -0.025em;
+}
+.home-inter .hv-trust h2 {
+  font-size: 28px;
+  font-weight: 600;
+  line-height: 1.25;
+  letter-spacing: -0.025em;
+}
+.home-inter .hv-hero-copy p {
+  font-size: 17px;
+  font-weight: 400;
+  line-height: 1.7;
+}
+.home-inter .hv-steps li p,
+.home-inter .hv-why-copy p,
+.home-inter .hv-trust p {
+  font-size: 16px;
+  font-weight: 400;
+  line-height: 1.65;
+}
+.home-inter .hv-why-photos figcaption strong {
+  font-weight: 600;
+  line-height: 1.4;
+}
+.home-inter .hv-hero-photo figcaption,
+.home-inter .hv-why-photos figcaption {
+  line-height: 1.6;
+}
+.home-inter .site-footer > span {
+  font-size: 12px;
+  line-height: 1.6;
+}
+@media (max-width:480px) {
+  .home-inter .hv-hero-copy h1 {
+    font-size: 38px;
+    line-height: 1.15;
+  }
+  .home-inter .hv-hero-copy p {
+    font-size: 16px;
+  }
+  .home-inter .hv-trust h2 {
+    font-size: 26px;
+  }
+}
