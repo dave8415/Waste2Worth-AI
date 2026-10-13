@@ -32,7 +32,7 @@ The API server reads `GEMINI_API_KEY` only on the server. Never add it to fronte
 
 - **Replit:** add `GEMINI_API_KEY` under the project’s Secrets. The app will show a setup message if the secret is missing.
 - **Local development:** provide `GEMINI_API_KEY` to the API server process through your local environment or a secret manager.
-- **Google Cloud Run later:** store the key in Google Secret Manager and expose it to the API service as `GEMINI_API_KEY`. Do not bake it into an image or source file.
+- **Google Cloud Run:** store the key in Google Secret Manager and expose it to the single runtime service as `GEMINI_API_KEY`. Do not bake it into an image or source file.
 
 This app calls Google’s Gemini API directly with your key; it does not use Replit-managed AI billing. Google account quotas and any Google billing settings still apply to your key.
 
@@ -69,6 +69,195 @@ Install workspace dependencies with `pnpm install`. Start the API server and web
 - Location validation, transaction status/consent/receipt/privacy rules, matching and impact calculations: `pnpm --filter @workspace/scripts exec tsx --test ../artifacts/waste2worth-ai/tests/*.test.ts`
 - Production frontend build: `PORT=8080 BASE_PATH=/ NODE_ENV=production pnpm --filter @workspace/waste2worth-ai run build` (the existing Vite configuration requires these non-secret build settings; `PORT` is supplied by Cloud Run at runtime).
 
-## Cloud Run deployment notes
+## Production: one Google Cloud Run service
 
-The frontend and API are separate services in this project. For a later Cloud Run deployment, build both, serve the built frontend with SPA fallback, route `/api/*` to the API service and other paths to the web service, and attach `GEMINI_API_KEY` only to the API service through Secret Manager. Services bind to `0.0.0.0` using `PORT`; do not run the development server as the production web service. The new transaction journey requires no server filesystem writes or server database, so Cloud Run's ephemeral filesystem does not hold demo records. Keep a stable HTTPS origin for browser persistence. Shared, backed-up multi-user evidence and private addresses require a separate secured storage/authentication design; this prototype intentionally does not add it. No deployment has been performed.
+The repository-root `Dockerfile` builds both workspace packages using Node.js 22
+and pnpm 10.26.1, installing from the root `pnpm-lock.yaml` with
+`--frozen-lockfile`. The final image contains only the bundled API and compiled
+frontend, runs as the non-root `node` user, and starts **one Node process**.
+There is no Vite server, pnpm process, reverse proxy, database, or Replit-managed
+AI service in the runtime image.
+
+- `POST /api/waste/analyze` remains the real server-side Google Gemini handler.
+- `/api/healthz` returns `{"status":"ok"}`; it does not call Gemini.
+- Unknown `/api/*` requests return an API 404, never the frontend.
+- The same Express server serves the frontend and static photos. Direct visits
+  to `/scan`, `/market`, `/reports`, and `/profile` serve the SPA entry.
+- Hashed `/assets/*` files are cached immutably. The SPA entry is revalidated.
+  Missing assets return 404 rather than HTML.
+- The server listens on `0.0.0.0` using runtime `PORT`, falling back to `8080`,
+  and handles Cloud Run's termination signal.
+- `GEMINI_API_KEY` is a **runtime-only** environment variable. Do not use a Docker
+  build argument, `VITE_` variable, committed `.env` file, or literal key in a
+  command. Startup logs expose only `geminiApiKeyConfigured: true/false`.
+
+### Build and verify locally
+
+Run from the repository root with Docker installed. Cloud Run requires an
+`linux/amd64` image; this also matters when building on an ARM laptop.
+
+```sh
+docker build --platform=linux/amd64 --tag waste2worth-ai:local .
+docker run --detach --rm --name waste2worth-local \
+  --publish 8080:8080 waste2worth-ai:local
+node scripts/verify-cloud-run.mjs http://127.0.0.1:8080
+docker stop waste2worth-local
+```
+
+If host port 8080 is occupied, use `--publish 18081:8080` and run the checker
+against `http://127.0.0.1:18081`; the container still listens on 8080.
+The checker verifies SPA deep links, JavaScript/photo delivery, asset caching,
+health checks, analyze request validation, and API/SPA separation. It makes no
+Gemini request and needs no key.
+
+For an actual local photo analysis, first make `GEMINI_API_KEY` available in your
+local shell using your own secure environment setup, then add
+`--env GEMINI_API_KEY` to `docker run`. That passes the existing variable at
+runtime without putting its value into the command or image. Without a key,
+pages and health checks still work and photo analysis shows the existing setup
+message. The health check is liveness, not proof of Gemini access or quota.
+
+To run the same production build without Docker (Node.js 22 and pnpm 10.26.1):
+
+```sh
+pnpm install --frozen-lockfile
+PORT=8080 BASE_PATH=/ NODE_ENV=production pnpm --filter @workspace/waste2worth-ai run build
+NODE_ENV=production pnpm --filter @workspace/api-server run build
+NODE_ENV=production PORT=8080 node --enable-source-maps artifacts/api-server/dist/index.mjs
+# In another terminal:
+node scripts/verify-cloud-run.mjs http://127.0.0.1:8080
+```
+
+### Google Cloud setup and deployment
+
+These are **manual deployment instructions**, not commands automatically run by
+this project. Cloud Build, Artifact Registry, Secret Manager, Cloud Run, and
+Gemini may incur Google charges. Review billing and quotas before proceeding.
+Use a billing-enabled Google Cloud project and an up-to-date `gcloud` CLI
+(Google Cloud Shell is suitable). Initial setup requires project administration
+permissions, including enabling APIs, creating service accounts, granting IAM
+roles, and making the Cloud Run service public.
+
+1. Set the project and region. Replace `YOUR_PROJECT_ID` with your project ID.
+   `asia-southeast2` is Jakarta; choose a supported region appropriate for you.
+
+   ```sh
+   export PROJECT_ID="YOUR_PROJECT_ID"
+   export REGION="asia-southeast2"
+   export SERVICE="waste2worth-ai"
+   export REPOSITORY="waste2worth"
+   export SECRET_NAME="waste2worth-gemini-api-key"
+   export RUNTIME_SA="waste2worth-runtime@${PROJECT_ID}.iam.gserviceaccount.com"
+   export BUILD_SA="waste2worth-build@${PROJECT_ID}.iam.gserviceaccount.com"
+   export IMAGE="${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPOSITORY}/${SERVICE}:$(date -u +%Y%m%d%H%M%S)"
+
+   gcloud auth login
+   gcloud config set project "$PROJECT_ID"
+   gcloud services enable run.googleapis.com cloudbuild.googleapis.com \
+     artifactregistry.googleapis.com secretmanager.googleapis.com iam.googleapis.com
+   ```
+
+2. Create an image repository and separate build/runtime service accounts
+   (one-time setup; reuse existing resources on later deployments).
+
+   ```sh
+   gcloud artifacts repositories create "$REPOSITORY" \
+     --repository-format=docker --location="$REGION"
+   gcloud iam service-accounts create waste2worth-runtime \
+     --display-name="Waste2Worth runtime"
+   gcloud iam service-accounts create waste2worth-build \
+     --display-name="Waste2Worth image builder"
+   gcloud projects add-iam-policy-binding "$PROJECT_ID" \
+     --member="serviceAccount:${BUILD_SA}" \
+     --role="roles/cloudbuild.builds.builder"
+   ```
+
+   The user submitting the build must be allowed to act as the build service
+   account; the user deploying must be allowed to act as the runtime service
+   account (`roles/iam.serviceAccountUser` on the respective account). Project
+   owners generally have this permission; an organization administrator should
+   grant it explicitly to a restricted deployer.
+
+3. Create the Gemini secret:
+
+   ```sh
+   gcloud secrets create "$SECRET_NAME" --replication-policy=automatic
+   ```
+
+   In **Google Cloud Console → Secret Manager → waste2worth-gemini-api-key**,
+   add a secret version containing your own Gemini API key using the secure
+   console form. For a new secret, this is version **1**. Do not paste the value
+   into GitHub, this README, Docker arguments, frontend settings, or chat.
+   The Replit secret does not transfer to Google automatically.
+
+   Grant only the runtime account access to this secret:
+
+   ```sh
+   gcloud secrets add-iam-policy-binding "$SECRET_NAME" \
+     --member="serviceAccount:${RUNTIME_SA}" \
+     --role="roles/secretmanager.secretAccessor"
+   ```
+
+4. From this repository's root, build and upload the image. The explicit ignore
+   file excludes local dependencies, generated output, uploads, development
+   tools, and secret files from the Cloud Build source upload as well as the
+   Docker build context. No Gemini secret is available to the build account.
+
+   ```sh
+   gcloud builds submit . \
+     --region="$REGION" \
+     --ignore-file=.dockerignore \
+     --service-account="projects/${PROJECT_ID}/serviceAccounts/${BUILD_SA}" \
+     --default-buckets-behavior=regional-user-owned-bucket \
+     --tag="$IMAGE"
+   ```
+
+5. Deploy **one public service**, injecting the versioned secret only at runtime:
+
+   ```sh
+   gcloud run deploy "$SERVICE" \
+     --image="$IMAGE" \
+     --region="$REGION" \
+     --platform=managed \
+     --allow-unauthenticated \
+     --service-account="$RUNTIME_SA" \
+     --port=8080 \
+     --set-secrets="GEMINI_API_KEY=${SECRET_NAME}:1" \
+     --cpu=1 --memory=512Mi \
+     --concurrency=4 --timeout=120 \
+     --min-instances=0 --max-instances=2
+   ```
+
+   Cloud Run supplies `PORT`; do not configure it as a secret. The 120-second
+   service timeout accommodates the existing 90-second Gemini timeout.
+   Public access can be blocked by organization IAM policies; an administrator
+   must permit public invocation. Instance limits are not a spending cap or an
+   API rate limiter: anyone reaching the public scan endpoint can consume Gemini
+   quota. This preparation does not add authentication or rate limiting.
+
+6. Obtain the assigned HTTPS URL and verify the deployed service:
+
+   ```sh
+   SERVICE_URL="$(gcloud run services describe "$SERVICE" --region="$REGION" \
+     --format='value(status.url)')"
+   node scripts/verify-cloud-run.mjs "$SERVICE_URL"
+   ```
+
+   Then open the URL, visit a deep link directly, and manually test one photo
+   if desired. The automated checks deliberately do not spend Gemini quota.
+   If analysis fails, review the safely redacted Cloud Run logs and the runtime
+   account's secret access, Gemini API permissions, and quota. Never log the key.
+   To rotate the key, add a new Secret Manager version and deploy a revision
+   referencing its number instead of `:1`; do not rebuild with a key.
+
+No Cloud Run deployment is performed by these changes. Development still uses
+the existing two Replit workflows. Production uses the single container above.
+Browser localStorage/IndexedDB records remain local to their origin: moving to
+the Cloud Run URL does not transfer existing Replit browser records. Cloud Run's
+ephemeral filesystem stores no offers, evidence, private pickup details, or scan
+uploads. A shared multi-user exchange would require a separate secured storage
+and authentication design, intentionally outside this deployment preparation.
+
+References: [Cloud Run container contract](https://cloud.google.com/run/docs/container-contract),
+[runtime secrets](https://cloud.google.com/run/docs/configuring/services/secrets),
+[Cloud Build submit](https://cloud.google.com/sdk/gcloud/reference/builds/submit).
