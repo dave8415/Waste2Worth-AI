@@ -2,3 +2,4 @@
 - [Public marketplace trust](marketplace-trust.md) — keep synthetic buyers in tests; show an empty Market until real industry listings exist.
 - [Home-page photo direction](home-photo-direction.md) — use real uploaded agricultural photos, not stock, generated images, or decorative landscapes.
 - [App-wide typography](app-typography.md) — Inter is the user's chosen typeface throughout Waste2Worth AI; do not reintroduce serif typography.
+- [Release tooling](release-tooling.md) — authorized Git writes need the workspace guard prefix; verify containers through HTTP if exec fails.
