@@ -1,6 +1,8 @@
 import { REPORT_LIMITATIONS, type ImpactEstimationReport } from "./impact-estimation";
+import { qualityLines } from "./material-quality";
+import { emissionsLines, EMISSIONS_LABEL } from "./emissions";
 
-export async function buildImpactPdf(report: ImpactEstimationReport, photo?: string): Promise<Uint8Array> {
+export async function buildImpactPdf(report: ImpactEstimationReport, photo?: string, outdated = false): Promise<Uint8Array> {
   const { jsPDF } = await import("jspdf");
   const doc = new jsPDF({ unit: "mm", format: "a4" });
   const margin = 20, width = 170;
@@ -15,7 +17,7 @@ export async function buildImpactPdf(report: ImpactEstimationReport, photo?: str
   const room = (height: number) => { if (y + height > 270) { doc.addPage(); header(); } };
   const text = (content: string, bold = false, size = 10) => {
     doc.setFontSize(size); doc.setFont("helvetica", bold ? "bold" : "normal");
-    const lines: string[] = doc.splitTextToSize(content.replace(/[\u0000-\u001f]/g, " "), width);
+    const lines: string[] = doc.splitTextToSize(content.replace(/[\u0000-\u001f]/g, " ").replace(/[\u2013\u2014]/g, "-"), width);
     for (const line of lines) { room(7); doc.text(line, margin, y); y += 5.3; }
     y += 2;
   };
@@ -24,6 +26,8 @@ export async function buildImpactPdf(report: ImpactEstimationReport, photo?: str
   header();
   text(`Generated: ${new Date(report.generatedAt).toLocaleString("en-GB")}`);
   text(`Status: ${report.status}`);
+  text(EMISSIONS_LABEL, true);
+  if (outdated) text("OUTDATED: linked data changed. Regenerate before using this report.", true);
   section("Material and planned use");
   text(`Material: ${report.material}`, true);
   text(`Intended use / processing: ${report.method}`);
@@ -41,6 +45,13 @@ export async function buildImpactPdf(report: ImpactEstimationReport, photo?: str
   text(`Actually collected: ${qty(report.collectedTonnes)}`);
   text(`Actually received: ${qty(report.receivedTonnes)}`);
   text(`Actually reused: ${qty(report.reusedTonnes)}`);
+  text(`Actual quantity mass basis: ${report.massBasis ?? "unknown"}; no automatic wet/dry conversion.`);
+  section("Material quality - user-entered measurements");
+  qualityLines(report.quality).forEach(line => text(line));
+  if (report.transactionDetails?.length) {
+    section("Linked transaction details");
+    report.transactionDetails.forEach(line => text(line));
+  }
   section("Scan findings");
   text(`Identification: ${report.source === "photo" ? "Photo estimate" : "Manual entry"}; confidence: ${report.confidence}`);
   text(`Visible clues: ${report.visibleClues.join("; ") || "Unknown"}`);
@@ -48,8 +59,9 @@ export async function buildImpactPdf(report: ImpactEstimationReport, photo?: str
   text(`Possible contamination: ${report.contamination.join("; ") || "Unknown - inspection needed"}`);
   text(`Potential uses to check: ${report.potentialUses.join("; ") || "Not assessed"}`);
   section("Environmental estimation");
-  text(`Emissions savings: ${report.emissionsStatus}`, true);
-  text("No emissions or financial environmental benefits have been estimated.");
+  text(`Emissions estimation: ${report.emissionsStatus}`, true);
+  if (report.emissions) emissionsLines(report.emissions).forEach(line => text(line));
+  else text("Not calculated. Required inputs were not recorded in this historical snapshot.");
   section("Important limitations");
   REPORT_LIMITATIONS.forEach(line => text(line));
   text(`Material reference: ${report.recordId}`, false, 8);
@@ -61,8 +73,8 @@ export async function buildImpactPdf(report: ImpactEstimationReport, photo?: str
   }
   return new Uint8Array(doc.output("arraybuffer"));
 }
-export async function downloadImpactPdf(report: ImpactEstimationReport, photo?: string): Promise<void> {
-  const bytes = await buildImpactPdf(report, photo);
+export async function downloadImpactPdf(report: ImpactEstimationReport, photo?: string, outdated = false): Promise<void> {
+  const bytes = await buildImpactPdf(report, photo, outdated);
   const blob = new Blob([new Uint8Array(bytes)], { type: "application/pdf" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");

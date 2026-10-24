@@ -2,6 +2,7 @@ import { Router, type IRouter } from "express";
 import { AnalyzeWasteBody, AnalyzeWasteResponse } from "@workspace/api-zod";
 import { describeGeminiFailure } from "../lib/gemini-error";
 import { geminiErrorMessage } from "../lib/gemini-errors";
+import { photoObservation } from "../lib/photo-observations";
 
 const router: IRouter = Router();
 const MAX_IMAGE_BYTES = 6 * 1024 * 1024;
@@ -75,6 +76,7 @@ router.post("/waste/analyze", async (req, res): Promise<void> => {
   }
 
   const prompt = [
+    "Only describe visible condition or apparent dryness. Never output a numeric moisture percentage, calorific/heating value, ash percentage, or certified quality grade in any field. These require user-entered measurements, never photo inference.",
     "You help farmers and collectors identify agricultural and plantation waste from a photo.",
     "Identify the most likely visible material. Be cautious: do not claim certainty when evidence is weak.",
     "List short visual clues that are actually visible in the image, and practical possible reuse options.",
@@ -158,9 +160,14 @@ router.post("/waste/analyze", async (req, res): Promise<void> => {
       return;
     }
 
+    const visual = parsedAnalysis.data;
+    for (const field of ["visibleClues", "visibleQualityIndicators", "possibleContamination", "possibleUses"] as const) {
+      visual[field] = visual[field]?.filter(line => photoObservation(line) !== null) ?? [];
+    }
+    visual.wasteType = photoObservation(visual.wasteType) ?? "Agricultural residue (visual estimate)";
     res.json(
       AnalyzeWasteResponse.parse({
-        ...parsedAnalysis.data,
+        ...visual,
         limitationNote: LIMITATION_NOTE,
       }),
     );

@@ -2,6 +2,8 @@ import { z } from "zod";
 import { inferMaterial, materialLabel, parseSupply, type Supply } from "./biomass";
 import { emptyOffer, type DemoTransaction, type OfferDraft, type Result } from "./transactions";
 import type { ActualQuantities, ImpactEstimationReport, ReportMethod } from "./impact-estimation";
+import type { MaterialQuality } from "./material-quality";
+import type { EmissionsInputs } from "./emissions";
 
 export const assessmentSchema = z.object({
   wasteType: z.string().max(1000), confidence: z.enum(["low", "medium", "high"]),
@@ -23,6 +25,8 @@ export interface MaterialRecord {
   intendedUse?: ReportMethod;
   actualQuantities?: ActualQuantities;
   impactReports?: ImpactEstimationReport[];
+  quality?: MaterialQuality;
+  emissionsInputs?: EmissionsInputs;
 }
 export const emptyShortOffer: ShortOffer = {
   quantityTonnes: "", askingPricePerTonneIdr: "", province: "", city: "",

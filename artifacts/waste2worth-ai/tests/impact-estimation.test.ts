@@ -40,7 +40,7 @@ test("report automatically carries material, original findings, offered quantity
   assert.equal(summary.receivedTonnes, null);
   assert.equal(summary.reusedTonnes, null);
   assert.equal(summary.status, "Awaiting actual data");
-  assert.equal(summary.emissionsStatus, "Data belum cukup");
+  assert.equal(summary.emissionsStatus, "Not calculated");
 });
 test("report does not import actual quantities or buyer claims from legacy simulated reports", () => {
   const r = record();
@@ -105,7 +105,7 @@ test("PDF is a genuine document with correctly separated quantities and brief li
   assert.match(text, /Impact Estimation/);
   assert.match(text, /Offered quantity: 10 tonnes/);
   assert.match(text, /Actually reused: Unknown/);
-  assert.match(text, /Data belum cukup/);
+  assert.match(text, /Not calculated/);
   assert.doesNotMatch(text, /Demo Java|FICTIONAL DEMO|carbon credit value/);
 });
 test("historical PDF exports preserve unknown quantities independently of later actual entries", async () => {

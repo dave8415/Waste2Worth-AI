@@ -13,6 +13,41 @@ const ACTION: Record<string, string> = {
 };
 const FLOW = STATUSES.filter((s) => s !== 'cancelled');
 
+function ReuseUpdate({ tx }: { tx: DemoTransaction }) {
+  const { recordReuse } = useTransactions();
+  const [collected, setCollected] = useState(tx.draft.actualCollectedTonnes);
+  const [reused, setReused] = useState(tx.draft.actualReusedTonnes);
+  const [use, setUse] = useState(tx.draft.destinationUse);
+  const [message, setMessage] = useState('');
+  const [error, setError] = useState(false);
+  const tid = tx.id;
+  return <form className="tx-block" onSubmit={e => {
+    e.preventDefault();
+    const result = recordReuse(tid, { actualCollectedTonnes: collected, actualReusedTonnes: reused, destinationUse: use });
+    setError(!result.ok);
+    setMessage(result.ok ? 'Actual reuse saved. Linked reports now use these quantities; regenerate any outdated snapshot.' : Object.values(result.errors).join(' '));
+  }} data-testid={`form-record-reuse-${tid}`}>
+    <h4>Record actual reuse after receipt</h4>
+    <p className="field-hint">Completion does not mean reuse. Update only known collected/reused quantities on a consistent weighing basis. This does not reopen terms or change received weight.</p>
+    <div className="field">
+      <label htmlFor={`reuse-collected-${tid}`}>Actual collected (tonnes)</label>
+      <input id={`reuse-collected-${tid}`} className="field-input" inputMode="decimal" value={collected} onChange={e => { setCollected(e.target.value); setMessage(''); }} data-testid={`input-reuse-collected-${tid}`} />
+    </div>
+    <div className="field">
+      <label htmlFor={`reuse-quantity-${tid}`}>Actual reused (tonnes)</label>
+      <input id={`reuse-quantity-${tid}`} className="field-input" inputMode="decimal" placeholder="Unknown until entered; 0 means none" value={reused} onChange={e => { setReused(e.target.value); setMessage(''); }} data-testid={`input-reuse-quantity-${tid}`} />
+    </div>
+    <div className="field">
+      <label htmlFor={`reuse-use-${tid}`}>Recorded destination use</label>
+      <select id={`reuse-use-${tid}`} className="field-input" value={use} onChange={e => { setUse(e.target.value as IntendedUse); setMessage(''); }} data-testid={`select-reuse-use-${tid}`}>
+        {USES.map(u => <option key={u} value={u}>{u}</option>)}
+      </select>
+    </div>
+    <button type="submit" className="button-secondary" data-testid={`button-save-reuse-${tid}`}>Save actual reuse</button>
+    {message && <p className={error ? 'field-error' : 'field-hint'} role={error ? 'alert' : 'status'} data-testid={`status-reuse-${tid}`}>{message}</p>}
+  </form>;
+}
+
 export function TransactionCard({ tx }: { tx: DemoTransaction }) {
   const { updateDraft, advance } = useTransactions();
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -134,6 +169,7 @@ export function TransactionCard({ tx }: { tx: DemoTransaction }) {
       )}
 
       {err('status')}
+      {(tx.status === 'received' || tx.status === 'completed') && <ReuseUpdate key={tid} tx={tx} />}
       {Object.keys(errors).length > 0 && <div className="status-message" role="alert" data-testid={`status-tx-errors-${tid}`}>{Object.values(errors).join(' ')}</div>}
 
       {!terminal ? (
@@ -144,7 +180,7 @@ export function TransactionCard({ tx }: { tx: DemoTransaction }) {
             <button type="button" className="button-secondary" onClick={() => go('cancelled')} data-testid={`button-cancel-transaction-${tid}`}><Ban size={13} /> Cancel demo</button>
           </div>
         </div>
-      ) : <p className="muted-line" data-testid={`status-terminal-${tid}`}>{STATUS_LABELS[tx.status]} — read-only. No real sale, delivery or quality confirmation.</p>}
+      ) : <p className="muted-line" data-testid={`status-terminal-${tid}`}>{STATUS_LABELS[tx.status]} — {tx.status === 'completed' ? 'terms and receipt locked; actual reuse may be updated separately.' : 'read-only.'} No real sale, delivery or quality confirmation.</p>}
     </article>
   );
 }

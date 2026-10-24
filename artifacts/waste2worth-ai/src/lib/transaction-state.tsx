@@ -2,6 +2,8 @@ import { createContext, useContext, useEffect, useState, type ReactNode } from "
 import { z } from "zod";
 import { MATERIALS, USES, type Supply } from "./biomass";
 import { clearEvidence, deleteEvidence, saveEvidence } from "./evidence-storage";
+import { localTransaction } from "./local-transaction";
+import type { MaterialRecord } from "./journey";
 import { STATUSES, createDemoTransaction, emptyOffer, patchTransaction, recordTransactionReuse, transitionTransaction, type DemoTransaction, type EvidenceMeta, type OfferDraft, type Result, type TransactionDraft, type TransactionStatus } from "./transactions";
 
 const KEY = "waste2worth-transactions-v1";
@@ -49,6 +51,7 @@ function load(): { state: TransactionState; warning: string } {
 interface TransactionContextValue {
   state: TransactionState;
   storageWarning: string;
+  startLocalTracking: (record: MaterialRecord) => Result<DemoTransaction>;
   updateOffer: (patch: Partial<OfferDraft>) => void;
   createTransaction: (buyerId: string, message: string, supply: Supply, offerId?: string, terms?: OfferDraft) => Result<DemoTransaction>;
   updateDraft: (id: string, patch: Partial<TransactionDraft>) => void;
@@ -70,6 +73,15 @@ export function TransactionProvider({ children }: { children: ReactNode }) {
   const replace = (tx: DemoTransaction) => setState(prev => ({ ...prev, transactions: prev.transactions.map(t => t.id === tx.id ? tx : t) }));
   const value: TransactionContextValue = {
     state, storageWarning,
+    startLocalTracking: (record): Result<DemoTransaction> => {
+      if (!record.offer) return { ok: false, errors: { offer: "Submit an offer first." } };
+      const existing = state.transactions.find(t => t.offerId === record.id && t.status !== "cancelled");
+      if (existing) return { ok: true, value: existing };
+      if (state.transactions.length >= 100) return { ok: false, errors: { limit: "Limit of 100 local records reached." } };
+      const tx = localTransaction(record, crypto.randomUUID(), new Date().toISOString());
+      setState(prev => prev.transactions.some(t => t.offerId === record.id && t.status !== "cancelled") ? prev : { ...prev, transactions: [tx, ...prev.transactions] });
+      return { ok: true, value: tx };
+    },
     updateOffer: patch => setState(prev => ({ ...prev, offer: { ...prev.offer, ...patch } })),
     createTransaction: (buyerId, message, supply, offerId, terms) => {
       if (state.transactions.length >= 100) return { ok: false, errors: { limit: "Limit of 100 local demo records reached." } };

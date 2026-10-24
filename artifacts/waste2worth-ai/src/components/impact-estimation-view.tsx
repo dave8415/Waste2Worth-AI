@@ -3,8 +3,13 @@ import { AlertCircle, ChevronDown, Download, FileText, ImageOff, LoaderCircle, M
 import { useJourney } from '@/lib/journey-state';
 import { USES } from '@/lib/biomass';
 import type { MaterialRecord } from '@/lib/journey';
-import { estimationVersion, REPORT_LIMITATIONS, type ActualQuantityDraft, type ImpactEstimationReport, type ReportMethod } from '@/lib/impact-estimation';
+import { estimationVersion, resolveActuals, REPORT_LIMITATIONS, type ActualQuantityDraft, type ImpactEstimationReport, type ReportMethod } from '@/lib/impact-estimation';
 import { downloadImpactPdf } from '@/lib/impact-pdf';
+import { MaterialQualityPanel } from './material-quality-panel';
+import { EmissionsPanel } from './emissions-panel';
+import { qualityLines } from '@/lib/material-quality';
+import { emissionsLines, EMISSIONS_LABEL } from '@/lib/emissions';
+import { useTransactions } from '@/lib/transaction-state';
 
 const fmtDate = (s: string) => new Date(s).toLocaleString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 const qty = (n: number | null | undefined) => n === null || n === undefined ? 'Unknown' : `${n} t`;
@@ -12,6 +17,8 @@ const toDraft = (r: MaterialRecord): ActualQuantityDraft => ({
   collected: r.actualQuantities?.collected?.toString() ?? '',
   received: r.actualQuantities?.received?.toString() ?? '',
   reused: r.actualQuantities?.reused?.toString() ?? '',
+  massBasis: r.actualQuantities?.massBasis ?? 'unknown',
+  sourceTransactionId: r.actualQuantities?.sourceTransactionId,
 });
 
 function Photo({ src, alt }: { src?: string; alt: string }) {
@@ -44,7 +51,14 @@ function ReportPreview({ report, photo }: { report: ImpactEstimationReport; phot
           </ul>
         </div>
       </div>
-      <div className="ie-emissions"><small>Emissions savings</small><strong data-testid="text-preview-emissions">{report.emissionsStatus}</strong></div>
+      <div className="ie-emissions"><small>Emissions estimation</small><strong data-testid="text-preview-emissions">{report.emissionsStatus}</strong></div>
+      <p className="field-hint">{EMISSIONS_LABEL}</p>
+      <p className="field-hint">Actual mass basis: {report.massBasis ?? 'unknown'}. No automatic wet/dry conversion.</p>
+      <details className="fold"><summary>Material quality and estimation inputs</summary>
+        {qualityLines(report.quality).map(line => <p key={line} className="field-hint">{line}</p>)}
+        {report.emissions && emissionsLines(report.emissions).map((line, i) => <p key={i} className="field-hint">{line}</p>)}
+        {report.transactionDetails?.map((line, i) => <p key={`tx-${i}`} className="field-hint">{line}</p>)}
+      </details>
       {(report.qualityIndicators.length > 0 || report.contamination.length > 0) && (
         <div className="ie-findings">
           {report.qualityIndicators.length > 0 && <p><b>Visible condition:</b> {report.qualityIndicators.join('; ')}</p>}
@@ -56,14 +70,17 @@ function ReportPreview({ report, photo }: { report: ImpactEstimationReport; phot
 }
 
 export function ImpactEstimationView({ record }: { record: MaterialRecord }) {
+  const { state: txState } = useTransactions();
+  const effectiveRecord = resolveActuals(record, txState.transactions);
+  const linkedTransactions = txState.transactions.filter(t => t.offerId === record.id);
   const { photos, setIntendedUse, saveActualQuantities, generateImpactReport } = useJourney();
   const offer = record.offer!;
   const photo = photos[record.id];
   const reports = useMemo(() => record.impactReports ?? [], [record.impactReports]);
   const [selectedId, setSelectedId] = useState<string | null>(reports[0]?.id ?? null);
   const selected = reports.find(r => r.id === selectedId) ?? reports[0];
-  const latest = reports[0];
-  const stale = !!latest && latest.sourceVersion !== estimationVersion(record);
+  const version = estimationVersion(record, txState.transactions);
+  const stale = !!selected && selected.sourceVersion !== version;
   const [draft, setDraft] = useState<ActualQuantityDraft>(() => toDraft(record));
   const [qErrors, setQErrors] = useState<Record<string, string>>({});
   const [saved, setSaved] = useState(false);
@@ -71,6 +88,9 @@ export function ImpactEstimationView({ record }: { record: MaterialRecord }) {
   const [dlError, setDlError] = useState('');
   const [downloading, setDownloading] = useState<string | null>(null);
   const lastId = useRef(record.id);
+  useEffect(() => {
+    if (record.actualQuantities?.sourceTransactionId) setDraft(toDraft(effectiveRecord));
+  }, [JSON.stringify(effectiveRecord.actualQuantities)]);
   useEffect(() => {
     if (lastId.current === record.id) return;
     lastId.current = record.id;
@@ -93,7 +113,7 @@ export function ImpactEstimationView({ record }: { record: MaterialRecord }) {
   async function download(report: ImpactEstimationReport) {
     if (downloading) return;
     setDownloading(report.id); setDlError('');
-    try { await downloadImpactPdf(report, photos[report.recordId]); }
+    try { await downloadImpactPdf(report, photos[report.recordId], report.sourceVersion !== version); }
     catch { setDlError('The PDF could not be created. Please try again.'); }
     finally { setDownloading(null); }
   }
@@ -135,14 +155,32 @@ export function ImpactEstimationView({ record }: { record: MaterialRecord }) {
           <summary data-testid="toggle-actual-quantities"><span>Record actual quantities <small>optional</small></span><ChevronDown size={15} /></summary>
           <form onSubmit={saveQuantities} noValidate data-testid="form-actual-quantities">
             <p className="field-hint">Enter tonnes only after material has really moved. Leave blank if unknown.</p>
+            <div className="field">
+              <label htmlFor="actual-transaction-source">Actual quantity source</label>
+              <select id="actual-transaction-source" className="field-input" value={draft.sourceTransactionId || ''} data-testid="select-actual-transaction" onChange={e => {
+                const id = e.target.value;
+                const linked = resolveActuals({ ...record, actualQuantities: { collected: null, received: null, reused: null, updatedAt: new Date().toISOString(), massBasis: draft.massBasis, sourceTransactionId: id || undefined } }, txState.transactions);
+                setDraft({ ...toDraft(linked), sourceTransactionId: id || undefined }); setSaved(false);
+              }}>
+                <option value="">Manual user-reported summary</option>
+                {linkedTransactions.map(t => <option key={t.id} value={t.id}>{t.buyerName} · {t.status} · {t.id.slice(0, 8)}</option>)}
+              </select>
+              <p className="field-hint">A linked receipt stays live when transaction data changes. No receipt or cancelled transaction means unknown actuals, never assumed reuse.</p>
+              {record.actualQuantities?.sourceTransactionId && <p className="field-hint">Recorded destination use: {effectiveRecord.intendedUse || 'Unknown'}. A linked transaction's recorded use takes precedence over a different plan for emissions estimation.</p>}
+            </div>
             {(['collected', 'received', 'reused'] as const).map(k => (
               <div className="field" key={k}>
                 <label htmlFor={`actual-${k}`}>Actually {k} (tonnes)</label>
-                <input id={`actual-${k}`} className="field-input" inputMode="decimal" placeholder="Unknown" value={draft[k]} aria-invalid={!!qErrors[k]} aria-describedby={qErrors[k] ? `actual-${k}-error` : undefined}
+                <input id={`actual-${k}`} className="field-input" inputMode="decimal" disabled={!!draft.sourceTransactionId} placeholder="Unknown" value={draft[k]} aria-invalid={!!qErrors[k]} aria-describedby={qErrors[k] ? `actual-${k}-error` : undefined}
                   onChange={e => { setDraft(d => ({ ...d, [k]: e.target.value })); setSaved(false); }} data-testid={`input-actual-${k}`} />
                 {qErrors[k] && <span className="field-error" id={`actual-${k}-error`} role="alert" data-testid={`error-actual-${k}`}>{qErrors[k]}</span>}
               </div>
             ))}
+            <div className="field"><label htmlFor="actual-mass-basis">Actual quantities mass basis</label>
+              <select id="actual-mass-basis" className="field-input" value={draft.massBasis || 'unknown'} onChange={e => { setDraft(d => ({ ...d, massBasis: e.target.value as ActualQuantityDraft['massBasis'] })); setSaved(false); }} data-testid="select-actual-mass-basis">
+                <option value="unknown">Unknown — not converted</option><option value="wet">Wet mass (all actual quantities)</option><option value="dry">Dry mass (all actual quantities)</option>
+              </select><p className="field-hint">Use one consistent basis for collected, received and reused quantities. If weighing bases differ, reconcile them with measurements before entry.</p>
+            </div>
             {qErrors.record && <span className="field-error" role="alert">{qErrors.record}</span>}
             <div className="ie-actions-row">
               <button type="submit" className="button-secondary" data-testid="button-save-quantities">Save quantities</button>
@@ -151,12 +189,14 @@ export function ImpactEstimationView({ record }: { record: MaterialRecord }) {
           </form>
         </details>
 
-        <div className="ie-emissions"><small>Emissions savings</small><strong>Belum dihitung</strong></div>
+        <MaterialQualityPanel record={record} />
+        <EmissionsPanel record={effectiveRecord} />
       </section>
 
       <section className="ie-output" aria-labelledby="ie-output-heading">
         <div className="panel ie-controls">
           <h2 id="ie-output-heading">Impact Estimation report</h2>
+          <p className="field-hint">Reports use saved data only. Save each section before generating; unsaved form changes are not included.</p>
           {stale && <div className="ie-stale" role="status" data-testid="status-report-stale"><RefreshCw size={14} /> Details changed; generate a new report.</div>}
           {genError && <div className="storage-warning" role="alert" data-testid="status-generate-error"><AlertCircle size={14} /> {genError}</div>}
           {dlError && <div className="storage-warning" role="alert" data-testid="status-download-error"><AlertCircle size={14} /> {dlError}</div>}
@@ -182,7 +222,7 @@ export function ImpactEstimationView({ record }: { record: MaterialRecord }) {
                   <button type="button" className="ie-history-pick" aria-pressed={selected?.id === r.id} onClick={() => setSelectedId(r.id)} data-testid={`button-select-report-${r.id}`}>
                     <strong>{fmtDate(r.generatedAt)}</strong>
                     <span>{r.material} · {r.method} · {r.offeredTonnes} t offered</span>
-                    <small>{r.status}</small>
+                    <small>{r.status}{r.sourceVersion !== version ? ' · Outdated — regenerate' : ''}</small>
                   </button>
                   <button type="button" className="icon-button" aria-label={`Download report from ${fmtDate(r.generatedAt)}`} disabled={!!downloading} onClick={() => download(r)} data-testid={`button-download-report-${r.id}`}>
                     {downloading === r.id ? <LoaderCircle size={15} className="spin" /> : <Download size={15} />}

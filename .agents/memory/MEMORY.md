@@ -3,3 +3,4 @@
 - [Home-page photo direction](home-photo-direction.md) — use real uploaded agricultural photos, not stock, generated images, or decorative landscapes.
 - [App-wide typography](app-typography.md) — Inter is the user's chosen typeface throughout Waste2Worth AI; do not reintroduce serif typography.
 - [Release tooling](release-tooling.md) — authorized Git writes need the workspace guard prefix; verify containers through HTTP if exec fails.
+- [Measurement trust](measurement-trust.md) — photos are not lab measurements; completion is not reuse; fuel emissions need explicit sourced inputs and remain unverified.

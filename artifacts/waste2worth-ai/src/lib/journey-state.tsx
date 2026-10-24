@@ -5,6 +5,9 @@ import { MATERIALS } from "./biomass";
 import { type DemoTransaction, type Result } from "./transactions";
 import { USES } from "./biomass";
 import { actualQuantitiesSchema, buildEstimationReport, impactReportSchema, validateActualQuantities, type ActualQuantityDraft, type ImpactEstimationReport, type ReportMethod } from "./impact-estimation";
+import { materialQualitySchema, validateQuality, type QualityDraft } from "./material-quality";
+import { emissionsInputsSchema, parseEmissionsDraft, type EmissionsDraft } from "./emissions";
+import { useTransactions } from "./transaction-state";
 
 const KEY = "waste2worth-connected-journey-v1";
 const bounded = z.string().max(1000);
@@ -29,6 +32,8 @@ const recordSchema = z.object({
   intendedUse: z.union([z.literal(""), z.enum([...USES])]).optional(),
   actualQuantities: actualQuantitiesSchema.optional(),
   impactReports: z.array(impactReportSchema).max(50).optional(),
+  quality: materialQualitySchema.optional(),
+  emissionsInputs: emissionsInputsSchema.optional(),
 });
 interface JourneyState { records: MaterialRecord[]; activeId: string | null }
 const schema = z.object({ records: z.array(recordSchema).max(100), activeId: bounded.nullable() });
@@ -55,9 +60,12 @@ interface JourneyContextValue {
   setIntendedUse: (id: string, method: ReportMethod) => void;
   saveActualQuantities: (id: string, draft: ActualQuantityDraft) => Result<MaterialRecord>;
   generateImpactReport: (id: string) => Result<ImpactEstimationReport>;
+  saveQuality: (id: string, draft: QualityDraft) => Result<MaterialRecord>;
+  saveEmissions: (id: string, draft: EmissionsDraft) => Result<MaterialRecord>;
 }
 const Context = createContext<JourneyContextValue | null>(null);
 export function JourneyProvider({ children }: { children: ReactNode }) {
+  const { state: txState } = useTransactions();
   const [loaded] = useState(load);
   const [state, setState] = useState<JourneyState>(loaded.state);
   const [storageWarning, setWarning] = useState(loaded.warning);
@@ -69,6 +77,24 @@ export function JourneyProvider({ children }: { children: ReactNode }) {
   const value: JourneyContextValue = {
     state, active: state.records.find(r => r.id === state.activeId), storageWarning,
     photos,
+    saveQuality: (id, draft) => {
+      const record = state.records.find(r => r.id === id);
+      if (!record) return { ok: false, errors: { record: "Material record not found." } };
+      const parsed = validateQuality(draft);
+      if (!parsed.ok) return parsed;
+      const updated = { ...record, quality: parsed.value };
+      setState(prev => ({ ...prev, records: prev.records.map(r => r.id === id ? updated : r) }));
+      return { ok: true, value: updated };
+    },
+    saveEmissions: (id, draft): Result<MaterialRecord> => {
+      const record = state.records.find(r => r.id === id);
+      if (!record) return { ok: false, errors: { record: "Material record not found." } };
+      const parsed = parseEmissionsDraft(draft);
+      if (!parsed.success) return { ok: false, errors: { emissions: "Enter finite non-negative emissions and quantities, or leave unknown. Check source/assumption lengths." } };
+      const updated = { ...record, emissionsInputs: parsed.data };
+      setState(prev => ({ ...prev, records: prev.records.map(r => r.id === id ? updated : r) }));
+      return { ok: true, value: updated };
+    },
     rememberPhoto: (id, jpegDataUrl) => {
       if (jpegDataUrl.startsWith("data:image/jpeg;base64,") && jpegDataUrl.length <= 8 * 1024 * 1024) setPhotos(prev => ({ ...prev, [id]: jpegDataUrl }));
     },
@@ -89,7 +115,7 @@ export function JourneyProvider({ children }: { children: ReactNode }) {
       const record = state.records.find(r => r.id === id);
       if (!record) return { ok: false, errors: { record: "Material record not found." } };
       if ((record.impactReports?.length || 0) >= 50) return { ok: false, errors: { limit: "This material has 50 saved reports. Download your existing reports before creating more." } };
-      const result = buildEstimationReport(record, crypto.randomUUID(), new Date().toISOString());
+      const result = buildEstimationReport(record, crypto.randomUUID(), new Date().toISOString(), txState.transactions);
       if (!result.ok) return result;
       setState(prev => ({ ...prev, records: prev.records.map(r => r.id === id ? { ...r, impactReports: [result.value, ...(r.impactReports || [])] } : r) }));
       return result;
