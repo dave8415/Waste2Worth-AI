@@ -8,6 +8,7 @@ import { useJourney } from '@/lib/journey-state';
 import { useTransactions } from '@/lib/transaction-state';
 import { TransactionCard } from '@/components/transaction-card';
 import { qualityLines } from '@/lib/material-quality';
+import { MaterialQualityPanel } from '@/components/material-quality-panel';
 
 const fmtDate = (s: string) => new Date(s).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
 
@@ -16,6 +17,7 @@ export default function Market() {
   const { state: txState, startLocalTracking } = useTransactions();
   const [trackingError, setTrackingError] = useState('');
   const [, navigate] = useLocation();
+  const detail = state.records.find(r => r.id === active?.id && r.offer) ?? state.records.find(r => r.offer);
   const offered = useMemo(() => state.records.filter(r => r.offer), [state.records]);
   const pending = useMemo(() => state.records.filter(r => !r.offer), [state.records]);
   function toReport(id: string) { selectRecord(id); navigate('/reports'); }
@@ -61,6 +63,7 @@ export default function Market() {
                     setTrackingError(result.ok ? '' : Object.values(result.errors).join(' '));
                     if (result.ok) setTimeout(() => document.getElementById(`tracking-${result.value.id}`)?.scrollIntoView({ behavior: 'smooth' }), 50);
                   }} data-testid={`button-track-transaction-${r.id}`}>Track transaction</button>
+                  <button type="button" className="button-secondary" onClick={() => { selectRecord(r.id); setTimeout(() => document.getElementById('market-material-details')?.scrollIntoView({ behavior: 'smooth' }), 50); }} data-testid={`button-material-details-${r.id}`}>Material details</button>
                   <button type="button" className="button-primary" onClick={() => toReport(r.id)} data-testid={`button-create-report-${r.id}`}>Create impact report <ArrowRight size={14} /></button>
                 </div>
               </li>
@@ -68,12 +71,24 @@ export default function Market() {
           </ul>
         )}
         {trackingError && <p role="alert" className="storage-warning">{trackingError}</p>}
+        {detail && <section id="market-material-details" className="panel" style={{ marginTop: 24 }} data-testid="section-market-material-details">
+          <h2>{detail.scan.wasteType} · Material details</h2>
+          <p className="field-hint">{detail.offer!.supply.quantityTonnes} tonnes · {detail.offer!.supply.location}, {detail.offer!.supply.region}. Optional test results belong to this batch; you can track a transaction without adding them.</p>
+          <details className="fold" data-testid="section-photo-observations"><summary>Photo observations — not measured test results</summary>
+            {detail.source === 'photo' ? <>
+              {[...detail.scan.visibleClues, ...detail.scan.visibleQualityIndicators].map((line, i) => <p key={i} className="field-hint">{line}</p>)}
+              <p className="field-hint">Possible contamination: {detail.scan.possibleContamination.join('; ') || 'Not established from the photo'}.</p>
+              <p className="field-hint">A photo cannot measure moisture, calorific value or ash percentage.</p>
+            </> : <p className="field-hint">Manually identified material. No photo was analyzed.</p>}
+          </details>
+          <MaterialQualityPanel key={detail.id} record={detail} />
+        </section>}
         {txState.transactions.filter(t => offered.some(r => r.id === t.offerId)).map(tx => {
           const record = offered.find(r => r.id === tx.offerId)!;
           return <section key={tx.id} id={`tracking-${tx.id}`} className="panel" style={{ marginTop: 24 }}>
             <h2>{record.scan.wasteType} · Transaction</h2>
             <p className="field-hint">Local prototype only. No messages are sent and completion does not imply reuse. Measured quality stays linked to this material record.</p>
-            <details className="fold"><summary>Material quality</summary>{qualityLines(record.quality).map(line => <p key={line} className="field-hint">{line}</p>)}</details>
+            <details className="fold"><summary>Measured test results — not photo observations</summary>{qualityLines(record.quality).map(line => <p key={line} className="field-hint">{line}</p>)}</details>
             <TransactionCard tx={tx} />
           </section>;
         })}

@@ -5,11 +5,11 @@ import { USES } from '@/lib/biomass';
 import type { MaterialRecord } from '@/lib/journey';
 import { estimationVersion, resolveActuals, REPORT_LIMITATIONS, type ActualQuantityDraft, type ImpactEstimationReport, type ReportMethod } from '@/lib/impact-estimation';
 import { downloadImpactPdf } from '@/lib/impact-pdf';
-import { MaterialQualityPanel } from './material-quality-panel';
 import { EmissionsPanel } from './emissions-panel';
 import { qualityLines } from '@/lib/material-quality';
 import { emissionsLines, EMISSIONS_LABEL } from '@/lib/emissions';
 import { useTransactions } from '@/lib/transaction-state';
+import { Link } from 'wouter';
 
 const fmtDate = (s: string) => new Date(s).toLocaleString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 const qty = (n: number | null | undefined) => n === null || n === undefined ? 'Unknown' : `${n} t`;
@@ -61,7 +61,7 @@ function ReportPreview({ report, photo }: { report: ImpactEstimationReport; phot
       </details>
       {(report.qualityIndicators.length > 0 || report.contamination.length > 0) && (
         <div className="ie-findings">
-          {report.qualityIndicators.length > 0 && <p><b>Visible condition:</b> {report.qualityIndicators.join('; ')}</p>}
+          {report.qualityIndicators.length > 0 && <p><b>Photo observations — not measured:</b> {report.qualityIndicators.join('; ')}</p>}
           {report.contamination.length > 0 && <p><b>Possible contamination:</b> {report.contamination.join('; ')}</p>}
         </div>
       )}
@@ -189,7 +189,11 @@ export function ImpactEstimationView({ record }: { record: MaterialRecord }) {
           </form>
         </details>
 
-        <MaterialQualityPanel record={record} />
+        <details className="fold">
+          <summary>Measured test results — separate from photo observations</summary>
+          {qualityLines(record.quality).map(line => <p key={line} className="field-hint">{line}</p>)}
+          <Link href="/market" className="text-link">Add or update optional test results in Market</Link>
+        </details>
         <EmissionsPanel record={effectiveRecord} />
       </section>
 

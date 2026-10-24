@@ -8,6 +8,7 @@ import { actualQuantitiesSchema, buildEstimationReport, impactReportSchema, vali
 import { materialQualitySchema, validateQuality, type QualityDraft } from "./material-quality";
 import { emissionsInputsSchema, parseEmissionsDraft, type EmissionsDraft } from "./emissions";
 import { useTransactions } from "./transaction-state";
+import { validateTestResults, type TestResultsDraft } from "./test-results";
 
 const KEY = "waste2worth-connected-journey-v1";
 const bounded = z.string().max(1000);
@@ -61,6 +62,7 @@ interface JourneyContextValue {
   saveActualQuantities: (id: string, draft: ActualQuantityDraft) => Result<MaterialRecord>;
   generateImpactReport: (id: string) => Result<ImpactEstimationReport>;
   saveQuality: (id: string, draft: QualityDraft) => Result<MaterialRecord>;
+  saveTestResults: (id: string, draft: TestResultsDraft) => Result<MaterialRecord>;
   saveEmissions: (id: string, draft: EmissionsDraft) => Result<MaterialRecord>;
 }
 const Context = createContext<JourneyContextValue | null>(null);
@@ -77,6 +79,24 @@ export function JourneyProvider({ children }: { children: ReactNode }) {
   const value: JourneyContextValue = {
     state, active: state.records.find(r => r.id === state.activeId), storageWarning,
     photos,
+    saveTestResults: (id, draft): Result<MaterialRecord> => {
+      const record = state.records.find(r => r.id === id);
+      if (!record?.offer) return { ok: false, errors: { record: "Create an offer before adding optional test results." } };
+      const parsed = validateTestResults(draft, new Date().toISOString());
+      if (!parsed.ok) return parsed;
+      const previousFiles = [
+        ...(record.quality?.legacyEvidence ?? []),
+        ...(["moisture", "calorific", "ash"] as const).flatMap(k => {
+          const evidence = record.quality?.[k].evidence;
+          return evidence ? [evidence] : [];
+        }),
+        ...(record.quality?.testResult?.evidence ? [record.quality.testResult.evidence] : []),
+      ];
+      const legacyEvidence = [...new Map(previousFiles.filter(e => e.id !== parsed.value.testResult?.evidence?.id).map(e => [e.id, e])).values()];
+      const updated = { ...record, quality: { ...parsed.value, ...(legacyEvidence.length ? { legacyEvidence } : {}) } };
+      setState(prev => ({ ...prev, records: prev.records.map(r => r.id === id ? updated : r) }));
+      return { ok: true, value: updated };
+    },
     saveQuality: (id, draft) => {
       const record = state.records.find(r => r.id === id);
       if (!record) return { ok: false, errors: { record: "Material record not found." } };

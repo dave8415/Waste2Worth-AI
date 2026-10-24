@@ -1,4 +1,3 @@
-import { MaterialQualityPanel } from '@/components/material-quality-panel';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { useLocation } from 'wouter';
 import { ArrowRight, Camera, ChevronRight, FileImage, Leaf, LoaderCircle, PenLine, Plus, ShieldCheck, Upload, X } from 'lucide-react';
@@ -228,7 +227,6 @@ export default function Scan() {
             )}
           </section>
         </div>
-        {record && <MaterialQualityPanel key={record.id} record={record} />}
         {record && !record.offer && offering && (
           <div ref={offerRef} className="panel offer-panel" data-testid="section-short-offer">
             <ShortOfferForm record={record} onSubmitted={() => navigate('/market')} />

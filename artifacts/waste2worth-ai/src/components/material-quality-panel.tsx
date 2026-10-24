@@ -3,25 +3,21 @@ import { AlertCircle, Download, LoaderCircle, Paperclip, Trash2 } from 'lucide-r
 import { useJourney } from '@/lib/journey-state';
 import type { MaterialRecord } from '@/lib/journey';
 import type { EvidenceMeta } from '@/lib/transactions';
-import { QUALITY_KEYS, QUALITY_LABELS, validateQuality, type QualityDraft } from '@/lib/material-quality';
+import { QUALITY_KEYS, QUALITY_LABELS } from '@/lib/material-quality';
+import { testResultsDraft, qualityStatus, type TestResultsDraft } from '@/lib/test-results';
 import { deleteEvidence, downloadEvidence, saveEvidence } from '@/lib/evidence-storage';
 import './measurement-panels.css';
 
 type Key = typeof QUALITY_KEYS[number];
-const CATEGORY = 'quality' as const;
 const LIMIT = 5 * 1024 * 1024;
-const SOURCES: QualityDraft[Key]['source'][] = ['', 'lab report', 'measuring device', 'user entry'];
-
-const toDraft = (r: MaterialRecord): QualityDraft => Object.fromEntries(QUALITY_KEYS.map(k => {
-  const m = r.quality?.[k];
-  return [k, { value: m?.value == null ? '' : String(m.value), source: m?.source ?? '', date: m?.date ?? '', basis: m?.basis ?? 'unknown', evidence: m?.evidence as EvidenceMeta | undefined }];
-})) as QualityDraft;
+const TYPES = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf', 'text/plain', 'text/csv'];
+const SOURCES: TestResultsDraft['source'][] = ['', 'lab report', 'measuring device', 'user entry'];
 
 export function MaterialQualityPanel({ record }: { record: MaterialRecord }) {
-  const { saveQuality } = useJourney();
-  const [draft, setDraft] = useState<QualityDraft>(() => toDraft(record));
-  const [files, setFiles] = useState<Partial<Record<Key, File>>>({});
-  const [removed, setRemoved] = useState<Partial<Record<Key, boolean>>>({});
+  const { saveTestResults } = useJourney();
+  const [draft, setDraft] = useState<TestResultsDraft>(() => testResultsDraft(record.quality));
+  const [file, setFile] = useState<File | undefined>();
+  const [removed, setRemoved] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -30,45 +26,49 @@ export function MaterialQualityPanel({ record }: { record: MaterialRecord }) {
   useEffect(() => {
     if (lastId.current === record.id) return;
     lastId.current = record.id;
-    setDraft(toDraft(record)); setFiles({}); setRemoved({}); setErrors({}); setSaved(false); setAsyncError('');
+    setDraft(testResultsDraft(record.quality)); setFile(undefined); setRemoved(false); setErrors({}); setSaved(false); setAsyncError('');
   }, [record]);
 
-  const set = (k: Key, patch: Partial<QualityDraft[Key]>) => { setDraft(d => ({ ...d, [k]: { ...d[k], ...patch } })); setSaved(false); };
+  const patch = (p: Partial<TestResultsDraft>) => { setDraft(d => ({ ...d, ...p, ...('confirmed' in p ? {} : { confirmed: false }) })); setSaved(false); };
+  const legacyPairs = [
+    ...QUALITY_KEYS.map(k => [k, record.quality?.[k]?.evidence] as const),
+    ...(record.quality?.legacyEvidence ?? []).map((m, i) => [`earlier-${i}`, m] as const),
+  ].filter(([, m]) => m && m.id !== draft.evidence?.id) as [string, EvidenceMeta][];
+  const legacy = [...new Map(legacyPairs.map(pair => [pair[1].id, pair])).values()];
+  const ev = removed ? undefined : draft.evidence;
 
-  function pickFile(k: Key, f: File | undefined) {
-    setErrors(e => { const n = { ...e }; delete n[k + 'File']; return n; });
+  function pickFile(f: File | undefined) {
+    setErrors(e => { const n = { ...e }; delete n.file; return n; });
     if (!f) return;
-    if (f.size > LIMIT || !f.size) { setErrors(e => ({ ...e, [k + 'File']: 'Each evidence file must be nonempty and at most 5 MB.' })); return; }
-    setFiles(s => ({ ...s, [k]: f })); setRemoved(r => ({ ...r, [k]: false })); setSaved(false);
+    if (!f.size || f.size > LIMIT) { setErrors(e => ({ ...e, file: 'File must be nonempty and at most 5 MB.' })); return; }
+    if (!TYPES.includes(f.type)) { setErrors(e => ({ ...e, file: 'Attach a PDF, JPG, PNG, WebP, TXT or CSV file.' })); return; }
+    setFile(f); patch({ confirmed: false });
   }
 
   async function submit(e: FormEvent) {
     e.preventDefault();
     if (busy) return;
     setAsyncError(''); setSaved(false);
-    const base: QualityDraft = Object.fromEntries(QUALITY_KEYS.map(k => [k, { ...draft[k], evidence: removed[k] ? undefined : draft[k].evidence }])) as QualityDraft;
-    const check = validateQuality(base);
-    if (!check.ok) { setErrors(check.errors); return; }
+    const pre: Record<string, string> = {};
+    const hasValue = QUALITY_KEYS.some(k => draft.values[k].trim() !== '');
+    if (!draft.source) pre.source = 'Choose the source.';
+    if (!draft.date) pre.date = 'Enter the test date.';
+    if (!draft.confirmed) pre.confirmed = 'Confirm the values before saving.';
+    if (!hasValue && !file && !ev) pre.record = 'Enter at least one value or attach an evidence file.';
+    if (Object.keys(pre).length) { setErrors(pre); return; }
     setErrors({}); setBusy(true);
-    const created: EvidenceMeta[] = [];
+    let created: EvidenceMeta | undefined;
     try {
-      const final = { ...base } as QualityDraft;
-      for (const k of QUALITY_KEYS) {
-        const f = files[k];
-        if (f && final[k].value.trim()) { const meta = await saveEvidence(f, CATEGORY); created.push(meta); final[k] = { ...final[k], evidence: meta }; }
-      }
-      const r = saveQuality(record.id, final);
+      if (file) created = await saveEvidence(file, 'quality');
+      const final: TestResultsDraft = { ...draft, evidence: created ?? ev };
+      const r = saveTestResults(record.id, final);
       if (!r.ok) {
-        await Promise.allSettled(created.map(m => deleteEvidence(m.id)));
+        if (created) await Promise.allSettled([deleteEvidence(created.id)]);
         setErrors(r.errors); return;
       }
-      const normalized = toDraft(r.value);
-      const stale = QUALITY_KEYS.map(k => draft[k].evidence).filter((m, i) => m && normalized[QUALITY_KEYS[i]].evidence?.id !== m.id) as EvidenceMeta[];
-      const del = await Promise.allSettled(stale.map(m => deleteEvidence(m.id)));
-      if (del.some(d => d.status === 'rejected')) setAsyncError('Saved, but an old local file could not be removed from browser storage.');
-      setDraft(normalized); setFiles({}); setRemoved({}); setSaved(true);
+      setDraft(testResultsDraft(r.value.quality)); setFile(undefined); setRemoved(false); setSaved(true);
     } catch (err) {
-      await Promise.allSettled(created.map(m => deleteEvidence(m.id)));
+      if (created) await Promise.allSettled([deleteEvidence(created.id)]);
       setAsyncError(err instanceof Error ? err.message : 'Evidence could not be stored locally.');
     } finally { setBusy(false); }
   }
@@ -79,64 +79,95 @@ export function MaterialQualityPanel({ record }: { record: MaterialRecord }) {
   }
 
   return (
-    <section className="panel mp-panel" aria-labelledby="mq-heading" data-testid="section-material-quality">
-      <div><span className="panel-kicker">USER-REPORTED MEASUREMENTS</span><h2 id="mq-heading">Material quality</h2></div>
-      <p className="mp-note">Only enter values that were actually measured. A photo cannot provide these. Files stay in this browser only and are not backed up.</p>
-      <form onSubmit={submit} noValidate>
-        <div className="mp-grid">
-          {QUALITY_KEYS.map(k => {
-            const d = draft[k], saved_ = record.quality?.[k], ev = removed[k] ? undefined : d.evidence, id = `quality-${k}`;
-            return (
-              <div className="mp-card" key={k} data-testid={`card-quality-${k}`}>
-                <h3>{QUALITY_LABELS[k]}</h3>
-                <div className="mp-value" data-testid={`text-quality-${k}-saved`}>Recorded: <b>{saved_?.value == null ? 'Not measured' : saved_.value}</b></div>
-                <div className="field">
-                  <label htmlFor={`${id}-value`}>Value</label>
-                  <input id={`${id}-value`} className="field-input" inputMode="decimal" placeholder="Not measured" value={d.value} aria-invalid={!!errors[k]} aria-describedby={errors[k] ? `${id}-error` : undefined} onChange={e => set(k, { value: e.target.value })} data-testid={`${id}-value`} />
-                </div>
-                <div className="mp-row">
-                  <div className="field">
-                    <label htmlFor={`${id}-source`}>Source</label>
-                    <select id={`${id}-source`} className="field-input" value={d.source} onChange={e => set(k, { source: e.target.value as QualityDraft[Key]['source'] })} data-testid={`${id}-source`}>
-                      {SOURCES.map(s => <option key={s} value={s}>{s || 'Choose source'}</option>)}
-                    </select>
-                  </div>
-                  <div className="field">
-                    <label htmlFor={`${id}-date`}>Date</label>
-                    <input id={`${id}-date`} type="date" className="field-input" value={d.date} onChange={e => set(k, { date: e.target.value })} data-testid={`${id}-date`} />
-                  </div>
-                </div>
-                <div className="field">
-                  <label htmlFor={`${id}-basis`}>Mass basis</label>
-                  <select id={`${id}-basis`} className="field-input" value={d.basis} onChange={e => set(k, { basis: e.target.value as QualityDraft[Key]['basis'] })} data-testid={`${id}-basis`}>
-                    <option value="unknown">Unknown</option><option value="wet">Wet</option><option value="dry">Dry</option>
+    <section className="mq-section" data-testid="section-material-quality">
+      <details className="mq-details">
+        <summary data-testid="toggle-test-results">
+          Add test results (optional)
+          <span className="mq-status" data-testid="text-quality-status">{qualityStatus(record.quality)}</span>
+        </summary>
+        <form onSubmit={submit} noValidate className="mq-form">
+          <p className="mq-note">Files are evidence only and are not read automatically. Enter the printed values yourself and confirm. Files stay in this browser only.</p>
+          <div className="mq-values">
+            {QUALITY_KEYS.map(k => (
+              <div className="field" key={k}>
+                <label htmlFor={`quality-${k}-value`}>{QUALITY_LABELS[k]}</label>
+                <input id={`quality-${k}-value`} className="field-input" inputMode="decimal" placeholder="Not tested" value={draft.values[k]}
+                  aria-invalid={!!errors[k]} onChange={e => patch({ values: { ...draft.values, [k]: e.target.value } })} data-testid={`quality-${k}-value`} />
+                {errors[k] && <span className="field-error" role="alert">{errors[k]}</span>}
+              </div>
+            ))}
+          </div>
+          <details className="mq-bases">
+            <summary>Mass basis (wet / dry)</summary>
+            <div className="mq-values">
+              {QUALITY_KEYS.map(k => (
+                <div className="field" key={k}>
+                  <label htmlFor={`quality-${k}-basis`}>{QUALITY_LABELS[k].split(' (')[0]}</label>
+                  <select id={`quality-${k}-basis`} className="field-input" value={draft.bases[k]}
+                    onChange={e => patch({ bases: { ...draft.bases, [k]: e.target.value as TestResultsDraft['bases'][Key] } })} data-testid={`quality-${k}-basis`}>
+                    <option value="unknown">Unknown</option><option value="wet">Wet (as received)</option><option value="dry">Dry</option>
                   </select>
                 </div>
-                <div className="field">
-                  <label htmlFor={`${id}-file`}>Evidence file (optional, max 5 MB)</label>
-                  <input id={`${id}-file`} type="file" className="field-input" accept="image/jpeg,image/png,image/webp,application/pdf,text/plain,text/csv" onChange={e => { pickFile(k, e.target.files?.[0]); e.target.value = ''; }} data-testid={`${id}-file`} />
-                  {files[k] && <span className="mp-file"><Paperclip size={12} /> New: {files[k]!.name}<button type="button" className="link-button" onClick={() => setFiles(s => ({ ...s, [k]: undefined }))}>Cancel</button></span>}
-                  {ev && !files[k] && (
-                    <span className="mp-file" data-testid={`${id}-evidence`}><Paperclip size={12} /> {ev.name}
-                      <button type="button" className="link-button" onClick={() => download(ev)} data-testid={`button-download-${id}`}><Download size={12} /> Download</button>
-                      <button type="button" className="link-button" onClick={() => { setRemoved(r => ({ ...r, [k]: true })); setSaved(false); }} data-testid={`button-remove-${id}`}><Trash2 size={12} /> Remove</button>
-                    </span>
-                  )}
-                  {removed[k] && d.evidence && <span className="mp-file">Will be removed on save. <button type="button" className="link-button" onClick={() => setRemoved(r => ({ ...r, [k]: false }))}>Undo</button></span>}
-                  {errors[k + 'File'] && <span className="field-error" role="alert">{errors[k + 'File']}</span>}
-                </div>
-                {errors[k] && <span className="field-error" id={`${id}-error`} role="alert" data-testid={`error-${id}`}>{errors[k]}</span>}
-              </div>
-            );
-          })}
-        </div>
-        {errors.record && <span className="field-error" role="alert">{errors.record}</span>}
-        {asyncError && <div className="storage-warning" role="alert" data-testid="status-quality-error"><AlertCircle size={14} /> {asyncError}</div>}
-        <div className="ie-actions-row" style={{ marginTop: 14 }}>
-          <button type="submit" className="button-secondary" disabled={busy} data-testid="button-save-quality">{busy && <LoaderCircle size={14} className="spin" />} Save measurements</button>
-          {saved && <span className="storage-ok" role="status" data-testid="status-quality-saved">Saved</span>}
-        </div>
-      </form>
+              ))}
+            </div>
+          </details>
+          <div className="mq-row">
+            <div className="field">
+              <label htmlFor="quality-source">Source</label>
+              <select id="quality-source" className="field-input" value={draft.source} aria-invalid={!!errors.source}
+                onChange={e => patch({ source: e.target.value as TestResultsDraft['source'] })} data-testid="quality-source">
+                {SOURCES.map(s => <option key={s} value={s}>{s ? s[0].toUpperCase() + s.slice(1) : 'Choose source'}</option>)}
+              </select>
+              {errors.source && <span className="field-error" role="alert">{errors.source}</span>}
+            </div>
+            <div className="field">
+              <label htmlFor="quality-date">Test date</label>
+              <input id="quality-date" type="date" className="field-input" value={draft.date} aria-invalid={!!errors.date}
+                onChange={e => patch({ date: e.target.value })} data-testid="quality-date" />
+              {errors.date && <span className="field-error" role="alert">{errors.date}</span>}
+            </div>
+          </div>
+          <div className="field">
+            <label htmlFor="quality-file">Evidence file (optional: COA, lab report PDF, image, TXT, CSV; max 5 MB)</label>
+            <input id="quality-file" type="file" className="field-input" accept={TYPES.join(',')}
+              onChange={e => { pickFile(e.target.files?.[0]); e.target.value = ''; }} data-testid="quality-file" />
+            {file && <span className="mp-file"><Paperclip size={12} /> New: {file.name}
+              <button type="button" className="link-button" onClick={() => setFile(undefined)} data-testid="button-cancel-quality-file">Cancel</button></span>}
+            {ev && !file && (
+              <span className="mp-file" data-testid="text-quality-evidence"><Paperclip size={12} /> {ev.name}
+                <button type="button" className="link-button" onClick={() => download(ev)} data-testid="button-download-quality-evidence"><Download size={12} /> Download</button>
+                <button type="button" className="link-button" onClick={() => { setRemoved(true); patch({ confirmed: false }); }} data-testid="button-remove-quality-evidence"><Trash2 size={12} /> Remove</button>
+              </span>
+            )}
+            {file && ev && <span className="mp-file">Saving will replace {ev.name}.</span>}
+            {removed && draft.evidence && !file && <span className="mp-file">Will be detached on save.
+              <button type="button" className="link-button" onClick={() => { setRemoved(false); patch({ confirmed: false }); }}>Undo</button></span>}
+            {errors.file && <span className="field-error" role="alert">{errors.file}</span>}
+            {errors.evidence && <span className="field-error" role="alert">{errors.evidence}</span>}
+          </div>
+          {legacy.length > 0 && (
+            <div className="mq-legacy" data-testid="list-quality-legacy-evidence">
+              <span>Earlier evidence files (kept for reports):</span>
+              {legacy.map(([k, m]) => (
+                <button key={k} type="button" className="link-button" onClick={() => download(m)} data-testid={`button-download-legacy-${k}`}>
+                  <Download size={12} /> {m.name}
+                </button>
+              ))}
+            </div>
+          )}
+          <label className="mq-check">
+            <input type="checkbox" checked={draft.confirmed} onChange={e => patch({ confirmed: e.target.checked })} data-testid="checkbox-confirm-quality" />
+            I confirm the entered values and document details match the actual test result.
+          </label>
+          {errors.confirmed && <span className="field-error" role="alert">{errors.confirmed}</span>}
+          {errors.record && <span className="field-error" role="alert">{errors.record}</span>}
+          {asyncError && <div className="storage-warning" role="alert" data-testid="status-quality-error"><AlertCircle size={14} /> {asyncError}</div>}
+          <div className="mq-actions">
+            <button type="submit" className="button-secondary" disabled={busy} data-testid="button-save-quality">{busy && <LoaderCircle size={14} className="spin" />} Save test results</button>
+            {saved && <span className="storage-ok" role="status" data-testid="status-quality-saved">Saved</span>}
+          </div>
+        </form>
+      </details>
     </section>
   );
 }

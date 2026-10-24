@@ -16,14 +16,23 @@ export const measurementSchema = z.object({
 });
 export const materialQualitySchema = z.object({
   moisture: measurementSchema, calorific: measurementSchema, ash: measurementSchema,
+  testResult: z.object({
+    source: z.enum(["lab report", "measuring device", "user entry"]),
+    date: z.string(), evidence: qualityEvidenceSchema.optional(),
+    confirmedAt: z.string().datetime(),
+  }).optional(),
+  legacyEvidence: z.array(qualityEvidenceSchema).optional(),
 });
 export type MaterialQuality = z.infer<typeof materialQualitySchema>;
 export type QualityDraft = Record<typeof QUALITY_KEYS[number], {
   value: string; source: z.infer<typeof measurementSchema>["source"]; date: string;
   basis: z.infer<typeof massBasisSchema>; evidence?: EvidenceMeta;
 }>;
-export const emptyQuality = (): MaterialQuality => Object.fromEntries(QUALITY_KEYS.map(k =>
-  [k, { value: null, source: "", date: "", basis: "unknown" }])) as MaterialQuality;
+export const emptyQuality = (): MaterialQuality => ({
+  moisture: { value: null, source: "", date: "", basis: "unknown" },
+  calorific: { value: null, source: "", date: "", basis: "unknown" },
+  ash: { value: null, source: "", date: "", basis: "unknown" },
+});
 export function validateQuality(draft: QualityDraft): Result<MaterialQuality> {
   const errors: Record<string, string> = {};
   const quality = emptyQuality();
@@ -41,8 +50,17 @@ export function validateQuality(draft: QualityDraft): Result<MaterialQuality> {
   return Object.keys(errors).length ? { ok: false, errors } : { ok: true, value: quality };
 }
 export function qualityLines(quality?: MaterialQuality): string[] {
-  return QUALITY_KEYS.map(k => {
+  if (quality?.testResult) {
+    const result = quality.testResult;
+    return [
+      QUALITY_KEYS.some(k => quality[k].value != null) ? "Measured test results — user-confirmed, not independently verified." : "Test evidence attached — numeric values not entered.",
+      `Shared source: ${result.source}; test date: ${result.date}; evidence: ${result.evidence?.name || "Not provided"}`,
+      ...QUALITY_KEYS.map(k => `${QUALITY_LABELS[k]}: ${quality[k].value == null ? "Not measured" : `${quality[k].value}; mass basis: ${quality[k].basis}`}`),
+      `User confirmation recorded: ${result.confirmedAt}`,
+    ];
+  }
+  return [...(QUALITY_KEYS.some(k => quality?.[k].value != null) ? [] : ["Quality not yet tested"]), ...QUALITY_KEYS.map(k => {
     const m = quality?.[k];
     return `${QUALITY_LABELS[k]}: ${m?.value == null ? "Not measured" : `${m.value}; source: ${m.source}; date: ${m.date}; mass basis: ${m.basis}; evidence: ${m.evidence?.name || "Not provided"}`}`;
-  });
+  })];
 }
