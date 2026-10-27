@@ -20,6 +20,12 @@ export const materialQualitySchema = z.object({
     source: z.enum(["lab report", "measuring device", "user entry"]),
     date: z.string(), evidence: qualityEvidenceSchema.optional(),
     confirmedAt: z.string().datetime(),
+    laboratoryName: z.string().max(200).optional(),
+    reportNumber: z.string().max(200).optional(),
+    sampleId: z.string().max(200).optional(),
+    extractionModel: z.string().max(100).optional(),
+    extractedAt: z.string().datetime().optional(),
+    calorificType: z.enum(["gross", "net", "unknown"]).optional(),
   }).optional(),
   legacyEvidence: z.array(qualityEvidenceSchema).optional(),
 });
@@ -52,9 +58,22 @@ export function validateQuality(draft: QualityDraft): Result<MaterialQuality> {
 export function qualityLines(quality?: MaterialQuality): string[] {
   if (quality?.testResult) {
     const result = quality.testResult;
+    const measured = QUALITY_KEYS.some(k => quality[k].value != null);
+    const headline = measured
+      ? result.source === "lab report"
+        ? "User-confirmed from uploaded lab report — not independently verified."
+        : "Measured test results — user-confirmed, not independently verified."
+      : "Test evidence attached — numeric values not entered.";
     return [
-      QUALITY_KEYS.some(k => quality[k].value != null) ? "Measured test results — user-confirmed, not independently verified." : "Test evidence attached — numeric values not entered.",
+      headline,
+      ...(result.source === "lab report"
+        ? ["Source: uploaded lab report, reviewed and confirmed by user; not independently verified."]
+        : []),
       `Shared source: ${result.source}; test date: ${result.date}; evidence: ${result.evidence?.name || "Not provided"}`,
+      ...(result.laboratoryName ? [`Laboratory: ${result.laboratoryName}`] : []),
+      ...(result.reportNumber ? [`Report number: ${result.reportNumber}`] : []),
+      ...(result.sampleId ? [`Sample ID: ${result.sampleId}`] : []),
+      ...(result.calorificType ? [`Calorific type: ${result.calorificType}`] : []),
       ...QUALITY_KEYS.map(k => `${QUALITY_LABELS[k]}: ${quality[k].value == null ? "Not measured" : `${quality[k].value}; mass basis: ${quality[k].basis}`}`),
       `User confirmation recorded: ${result.confirmedAt}`,
     ];

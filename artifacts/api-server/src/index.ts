@@ -1,5 +1,8 @@
 import app from "./app";
+import { loadRootEnv } from "./lib/load-root-env";
 import { logger } from "./lib/logger";
+
+loadRootEnv();
 
 const rawPort = process.env.PORT || "8080";
 

@@ -16,7 +16,7 @@ The home page uses three real uploaded agricultural photos, optimized for web de
 
 Scan contains identification and visible observations, followed by **Offer this material**; it has no test-result forms. Photos do not produce numeric moisture, calorific value, ash content or certified grades. Unsupported provider claims are filtered on the server. Offering never requires test results; the material shows **Quality not yet tested** until results or evidence are recorded.
 
-After creating an offer, open **Market → Material details → Add test results (optional)**. This section starts collapsed. Either attach a lab report/COA as evidence, enter measured moisture (%), calorific value (kcal/kg) and ash (%) manually, or do both. Use **one shared source, test date and evidence file** for this result; optional per-value mass bases remain available. Explicit confirmation is required before saving. Files are evidence only: this version does **not** run Gemini extraction or populate numeric fields from an uploaded document. Enter printed values manually and review them. A document-only save leaves every unentered value **Not measured**, not zero.
+After creating an offer, open **Market → Material details → Add test results (optional)**. This section starts collapsed. Attach a lab report/COA as evidence, enter measured moisture (%), calorific value (kcal/kg) and ash (%) manually, or do both. PDF, JPEG, PNG and WebP reports can be sent to Gemini after you click **Extract values with Gemini**; extraction does not start on file selection. Review, edit or remove candidate values, then confirm before saving. TXT and CSV stay evidence-only. Use **one shared source, test date and evidence file** for this result; optional per-value mass bases remain available. A document-only save leaves every unentered value **Not measured**, not zero.
 
 Market and Reports distinguish measured/user-confirmed test results from visible photo observations. Sources and files are not independently verified. Current and earlier evidence use private browser IndexedDB storage (5 MB per file, 50 MB total), not server uploads; earlier evidence is retained when a result is replaced. Existing records and historical reports remain readable. Changes to saved test results still mark linked report snapshots outdated without changing transaction or emissions formulas.
 
@@ -46,7 +46,7 @@ The ESG summary is not certified, not a compliance report, and not proof of carb
 The API server reads `GEMINI_API_KEY` only on the server. Never add it to frontend code or a `VITE_` variable.
 
 - **Replit:** add `GEMINI_API_KEY` under the project’s Secrets. The app will show a setup message if the secret is missing.
-- **Local development:** provide `GEMINI_API_KEY` to the API server process through your local environment or a secret manager.
+- **Local development:** add `GEMINI_API_KEY` to the repository-root `.env` file. The API server loads that file; never add the key to frontend code or a `VITE_` variable.
 - **Google Cloud Run:** store the key in Google Secret Manager and expose it to the single runtime service as `GEMINI_API_KEY`. Do not bake it into an image or source file.
 
 This app calls Google’s Gemini API directly with your key; it does not use Replit-managed AI billing. Google account quotas and any Google billing settings still apply to your key.
@@ -75,14 +75,19 @@ It does not automatically retry, switch models, enable billing, or retain upload
 
 ## Run in this workspace
 
-Install workspace dependencies with `pnpm install`. Start the API server and web app using their existing workflows. The web app calls the API at `/api/waste/analyze`.
+Install workspace dependencies with `pnpm install`, then start both local processes with `pnpm dev`.
+
+- Frontend: http://localhost:5173
+- API health check: http://localhost:8080/api/healthz
+
+The Vite dev server proxies `/api` to `http://127.0.0.1:8080`, so scan requests at `/api/waste/analyze` reach the local API.
 
 ## Checks
 
 - Frontend: `pnpm --filter @workspace/waste2worth-ai run typecheck`
 - API server: `pnpm --filter @workspace/api-server run typecheck`
 - Location validation, transaction status/consent/receipt/privacy rules, matching and impact calculations: `pnpm --filter @workspace/scripts exec tsx --test ../artifacts/waste2worth-ai/tests/*.test.ts`
-- Production frontend build: `PORT=8080 BASE_PATH=/ NODE_ENV=production pnpm --filter @workspace/waste2worth-ai run build` (the existing Vite configuration requires these non-secret build settings; `PORT` is supplied by Cloud Run at runtime).
+- Production frontend build: `PORT=8080 NODE_ENV=production pnpm --filter @workspace/waste2worth-ai run build`. `PORT` is required (Cloud Run supplies it at runtime). `BASE_PATH` defaults to `/`; Git Bash path conversion of `/` is normalized back to `/`. Do not change the `/api` proxy.
 
 ## Production: one Google Cloud Run service
 
@@ -136,7 +141,7 @@ To run the same production build without Docker (Node.js 22 and pnpm 10.26.1):
 
 ```sh
 pnpm install --frozen-lockfile
-PORT=8080 BASE_PATH=/ NODE_ENV=production pnpm --filter @workspace/waste2worth-ai run build
+PORT=8080 NODE_ENV=production pnpm --filter @workspace/waste2worth-ai run build
 NODE_ENV=production pnpm --filter @workspace/api-server run build
 NODE_ENV=production PORT=8080 node --enable-source-maps artifacts/api-server/dist/index.mjs
 # In another terminal:

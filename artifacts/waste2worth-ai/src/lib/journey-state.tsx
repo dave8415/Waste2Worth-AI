@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import { z } from "zod";
-import { assessmentSchema, connectedReportText, prepareConnectedOffer, reportVersion, type Assessment, type MaterialRecord, type ShortOffer } from "./journey";
+import { applyMaterialConfirmation, assessmentSchema, connectedReportText, prepareConnectedOffer, reportVersion, withOriginalIdentification, type Assessment, type MaterialRecord, type ShortOffer } from "./journey";
 import { MATERIALS } from "./biomass";
 import { type DemoTransaction, type Result } from "./transactions";
 import { USES } from "./biomass";
@@ -52,6 +52,7 @@ function load() {
 interface JourneyContextValue {
   state: JourneyState; active: MaterialRecord | undefined; storageWarning: string;
   startScan: (result: Assessment, source?: "photo" | "manual") => Result<MaterialRecord>;
+  confirmScan: (id: string, confirmation: { materialId: string; materialName: string }) => Result<MaterialRecord>;
   selectRecord: (id: string) => void;
   submitOffer: (id: string, draft: ShortOffer) => Result<MaterialRecord>;
   generateReport: (id: string, transactions: DemoTransaction[]) => Result<MaterialRecord>;
@@ -144,9 +145,17 @@ export function JourneyProvider({ children }: { children: ReactNode }) {
       if (state.records.length >= 100) return { ok: false, errors: { limit: "Limit of 100 local material records reached. Download your reports before resetting local records." } };
       const scan = assessmentSchema.safeParse(result);
       if (!scan.success) return { ok: false, errors: { scan: "This scan result could not be saved. Try another photo." } };
-      const record: MaterialRecord = { id: crypto.randomUUID(), source, scan: scan.data, createdAt: new Date().toISOString(), offer: null, report: null };
+      const record: MaterialRecord = { id: crypto.randomUUID(), source, scan: withOriginalIdentification(scan.data), createdAt: new Date().toISOString(), offer: null, report: null };
       setState(prev => ({ records: [record, ...prev.records], activeId: record.id }));
       return { ok: true, value: record };
+    },
+    confirmScan: (id, confirmation): Result<MaterialRecord> => {
+      const record = state.records.find(r => r.id === id);
+      if (!record) return { ok: false, errors: { record: "Material record not found." } };
+      if (record.offer) return { ok: true, value: record };
+      const updated = { ...record, scan: applyMaterialConfirmation(record.scan, confirmation, new Date().toISOString()) };
+      setState(prev => ({ ...prev, records: prev.records.map(r => r.id === id ? updated : r) }));
+      return { ok: true, value: updated };
     },
     selectRecord: id => setState(prev => prev.records.some(r => r.id === id) ? { ...prev, activeId: id } : prev),
     submitOffer: (id, draft): Result<MaterialRecord> => {

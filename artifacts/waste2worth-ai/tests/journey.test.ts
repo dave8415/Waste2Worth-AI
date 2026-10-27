@@ -42,7 +42,7 @@ test("short offer validates geography, quantity, price, notes and logistics", ()
 });
 test("unrecognized scanned classification is retained and matched only to uncertain category", () => {
   const uncertain = { ...scan, wasteType: "Unidentified brown residue" };
-  assert.equal(value(prepareConnectedOffer(uncertain, draft, now)).supply.material, "other");
+  assert.equal(value(prepareConnectedOffer(uncertain, draft, now)).supply.material, "other-agricultural-residue");
 });
 test("older API result can be normalized without invented visible condition findings", () => {
   const { visibleQualityIndicators, possibleContamination, ...old } = scan;

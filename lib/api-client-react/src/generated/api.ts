@@ -20,6 +20,8 @@ import type {
 } from '@tanstack/react-query';
 
 import type {
+  CoaExtraction,
+  CoaExtractionInput,
   HealthStatus,
   WasteAnalysis,
   WasteAnalysisInput
@@ -216,5 +218,94 @@ export const useAnalyzeWaste = <TError = ErrorType<void>,
         TContext
       > => {
       return useMutation(getAnalyzeWasteMutationOptions(options));
+    }
+
+export const getExtractCoaUrl = () => {
+
+
+
+
+  return `/api/waste/extract-coa`
+}
+
+/**
+ * Reads only values visibly printed in an uploaded COA or laboratory report. The response contains unconfirmed candidates. It does not verify the document or invent missing measurements.
+ * @summary Extract printed laboratory values from a COA or lab report
+ */
+export const extractCoa = async (coaExtractionInput: CoaExtractionInput, options?: Parameters<typeof customFetch>[1]): Promise<CoaExtraction> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<CoaExtraction>(getExtractCoaUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(coaExtractionInput)
+  }
+);}
+
+
+
+
+
+export const getExtractCoaMutationKey = () => ['extractCoa'] as const;
+
+export const getExtractCoaMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof extractCoa>>, TError,ExtractCoaMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof extractCoa>>, TError,ExtractCoaMutationVariables, TContext> => {
+
+const mutationKey = getExtractCoaMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof extractCoa>>, ExtractCoaMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  extractCoa(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ExtractCoaMutationResult = NonNullable<Awaited<ReturnType<typeof extractCoa>>>
+    export type ExtractCoaMutationBody = BodyType<CoaExtractionInput>
+    export type ExtractCoaMutationError = ErrorType<void>
+    export type ExtractCoaMutationVariables = {data: BodyType<CoaExtractionInput>}
+
+    /**
+ * @summary Extract printed laboratory values from a COA or lab report
+ */
+export const useExtractCoa = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof extractCoa>>, TError,ExtractCoaMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof extractCoa>>,
+        TError,
+        ExtractCoaMutationVariables,
+        TContext
+      > => {
+      return useMutation(getExtractCoaMutationOptions(options));
     }
 

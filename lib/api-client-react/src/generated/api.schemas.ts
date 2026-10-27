@@ -37,17 +37,142 @@ export const WasteAnalysisConfidence = {
   high: 'high',
 } as const;
 
-export interface WasteAnalysis {
-  /** The likely agricultural or plantation waste type. */
+/**
+ * Whether the photo appears to show agricultural or plantation residue.
+ */
+export type WasteAnalysisIsAgriculturalResidue = typeof WasteAnalysisIsAgriculturalResidue[keyof typeof WasteAnalysisIsAgriculturalResidue];
+
+
+export const WasteAnalysisIsAgriculturalResidue = {
+  true: 'true',
+  false: 'false',
+  unknown: 'unknown',
+} as const;
+
+export type WasteAnalysisOriginalIdentificationConfidence = typeof WasteAnalysisOriginalIdentificationConfidence[keyof typeof WasteAnalysisOriginalIdentificationConfidence];
+
+
+export const WasteAnalysisOriginalIdentificationConfidence = {
+  low: 'low',
+  medium: 'medium',
+  high: 'high',
+} as const;
+
+/**
+ * Unvalidated Gemini identification retained for audit history.
+ */
+export type WasteAnalysisOriginalIdentification = {
   wasteType: string;
+  materialId?: string;
+  materialName?: string;
+  confidence: WasteAnalysisOriginalIdentificationConfidence;
+};
+
+export interface WasteAnalysis {
+  /** Display name for the likely agricultural or plantation residue. Prefer materialName when present. */
+  wasteType: string;
+  /** Validated canonical residue id. unknown when the supplied id conflicts with the material name or the photo is not residue. */
+  materialId?: string;
+  /** Human-readable residue name, including names not yet in the local catalog. */
+  materialName?: string;
+  /** Broad residue category such as rice residues or wood and forestry residues. */
+  materialCategory?: string;
   confidence: WasteAnalysisConfidence;
+  /** Whether the photo appears to show agricultural or plantation residue. */
+  isAgriculturalResidue?: WasteAnalysisIsAgriculturalResidue;
+  /** Unvalidated Gemini identification retained for audit history. */
+  originalIdentification?: WasteAnalysisOriginalIdentification;
   visibleClues: string[];
   /** Visible condition clues only, not measured or confirmed material quality. */
   visibleQualityIndicators?: string[];
   /** Possible visible foreign matter or contamination requiring inspection; absence is not proof of purity. */
   possibleContamination?: string[];
   possibleUses: string[];
+  /** True when the identification is unmatched, uncertain, or should be reviewed by the user. */
+  needsUserConfirmation?: boolean;
   /** Must explain that a photo cannot confirm moisture, quality, or energy value and lab testing may be needed. */
   limitationNote: string;
+}
+
+export type CoaExtractionInputMimeType = typeof CoaExtractionInputMimeType[keyof typeof CoaExtractionInputMimeType];
+
+
+export const CoaExtractionInputMimeType = {
+  'application/pdf': 'application/pdf',
+  'image/jpeg': 'image/jpeg',
+  'image/png': 'image/png',
+  'image/webp': 'image/webp',
+} as const;
+
+export interface CoaExtractionInput {
+  /**
+     * Base64-encoded document content without a data URL prefix.
+     * @minLength 1
+     * @maxLength 8388608
+     */
+  documentBase64: string;
+  mimeType: CoaExtractionInputMimeType;
+}
+
+export interface CoaPrintedMeasurement {
+  /** @nullable */
+  value: number | null;
+  /** @nullable */
+  unit: string | null;
+  /** @nullable */
+  massBasis: string | null;
+  /** @nullable */
+  method: string | null;
+  /** @nullable */
+  printedText: string | null;
+}
+
+/**
+ * @nullable
+ */
+export type CoaPrintedCalorificCalorificType = typeof CoaPrintedCalorificCalorificType[keyof typeof CoaPrintedCalorificCalorificType] | null;
+
+
+export const CoaPrintedCalorificCalorificType = {
+  gross: 'gross',
+  net: 'net',
+  unknown: 'unknown',
+} as const;
+
+export interface CoaPrintedCalorific {
+  /** @nullable */
+  value: number | null;
+  /** @nullable */
+  unit: string | null;
+  /** @nullable */
+  calorificType: CoaPrintedCalorificCalorificType;
+  /** @nullable */
+  massBasis: string | null;
+  /** @nullable */
+  method: string | null;
+  /** @nullable */
+  printedText: string | null;
+}
+
+/**
+ * Unconfirmed printed values. Missing or unclear fields are null.
+ */
+export interface CoaExtraction {
+  /** @nullable */
+  documentType: string | null;
+  /** @nullable */
+  laboratoryName: string | null;
+  /** @nullable */
+  reportNumber: string | null;
+  /** @nullable */
+  sampleId: string | null;
+  /** @nullable */
+  testDate: string | null;
+  moisture: CoaPrintedMeasurement | null;
+  calorificValue: CoaPrintedCalorific | null;
+  ash: CoaPrintedMeasurement | null;
+  warnings: string[];
+  /** @nullable */
+  documentLooksLikeLabReport: boolean | null;
 }
 

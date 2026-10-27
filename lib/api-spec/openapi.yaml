@@ -52,6 +52,36 @@ paths:
           description: The analysis provider returned an invalid response
         "503":
           description: Gemini is not configured or is temporarily unavailable
+  /waste/extract-coa:
+    post:
+      operationId: extractCoa
+      tags: [waste]
+      summary: Extract printed laboratory values from a COA or lab report
+      description: >
+        Reads only values visibly printed in an uploaded COA or laboratory report.
+        The response contains unconfirmed candidates. It does not verify the
+        document or invent missing measurements.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CoaExtractionInput"
+      responses:
+        "200":
+          description: Printed values extracted as unconfirmed candidates
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CoaExtraction"
+        "400":
+          description: Invalid document data or unsupported document type
+        "413":
+          description: Document is too large
+        "502":
+          description: The extraction provider returned an invalid response
+        "503":
+          description: Gemini is not configured or is temporarily unavailable
 components:
   schemas:
     HealthStatus:
@@ -80,10 +110,38 @@ components:
       properties:
         wasteType:
           type: string
-          description: The likely agricultural or plantation waste type.
+          description: Display name for the likely agricultural or plantation residue. Prefer materialName when present.
+        materialId:
+          type: string
+          description: Validated canonical residue id. unknown when the supplied id conflicts with the material name or the photo is not residue.
+        materialName:
+          type: string
+          description: Human-readable residue name, including names not yet in the local catalog.
+        materialCategory:
+          type: string
+          description: Broad residue category such as rice residues or wood and forestry residues.
         confidence:
           type: string
           enum: [low, medium, high]
+        isAgriculturalResidue:
+          type: string
+          enum: ["true", "false", "unknown"]
+          description: Whether the photo appears to show agricultural or plantation residue.
+        originalIdentification:
+          type: object
+          additionalProperties: false
+          description: Unvalidated Gemini identification retained for audit history.
+          properties:
+            wasteType:
+              type: string
+            materialId:
+              type: string
+            materialName:
+              type: string
+            confidence:
+              type: string
+              enum: [low, medium, high]
+          required: [wasteType, confidence]
         visibleClues:
           type: array
           items:
@@ -102,8 +160,101 @@ components:
           type: array
           items:
             type: string
+        needsUserConfirmation:
+          type: boolean
+          description: True when the identification is unmatched, uncertain, or should be reviewed by the user.
         limitationNote:
           type: string
           description: Must explain that a photo cannot confirm moisture, quality, or energy value and lab testing may be needed.
       required: [wasteType, confidence, visibleClues, possibleUses, limitationNote]
+    CoaExtractionInput:
+      type: object
+      additionalProperties: false
+      properties:
+        documentBase64:
+          type: string
+          minLength: 1
+          maxLength: 8388608
+          description: Base64-encoded document content without a data URL prefix.
+        mimeType:
+          type: string
+          enum: [application/pdf, image/jpeg, image/png, image/webp]
+      required: [documentBase64, mimeType]
+    CoaPrintedMeasurement:
+      type: object
+      additionalProperties: false
+      properties:
+        value:
+          type: ["number", "null"]
+        unit:
+          type: ["string", "null"]
+        massBasis:
+          type: ["string", "null"]
+        method:
+          type: ["string", "null"]
+        printedText:
+          type: ["string", "null"]
+      required: [value, unit, massBasis, method, printedText]
+    CoaPrintedCalorific:
+      type: object
+      additionalProperties: false
+      properties:
+        value:
+          type: ["number", "null"]
+        unit:
+          type: ["string", "null"]
+        calorificType:
+          type: ["string", "null"]
+          enum: [gross, net, unknown, null]
+        massBasis:
+          type: ["string", "null"]
+        method:
+          type: ["string", "null"]
+        printedText:
+          type: ["string", "null"]
+      required: [value, unit, calorificType, massBasis, method, printedText]
+    CoaExtraction:
+      type: object
+      additionalProperties: false
+      description: Unconfirmed printed values. Missing or unclear fields are null.
+      properties:
+        documentType:
+          type: ["string", "null"]
+        laboratoryName:
+          type: ["string", "null"]
+        reportNumber:
+          type: ["string", "null"]
+        sampleId:
+          type: ["string", "null"]
+        testDate:
+          type: ["string", "null"]
+        moisture:
+          oneOf:
+            - $ref: "#/components/schemas/CoaPrintedMeasurement"
+            - type: "null"
+        calorificValue:
+          oneOf:
+            - $ref: "#/components/schemas/CoaPrintedCalorific"
+            - type: "null"
+        ash:
+          oneOf:
+            - $ref: "#/components/schemas/CoaPrintedMeasurement"
+            - type: "null"
+        warnings:
+          type: array
+          items:
+            type: string
+        documentLooksLikeLabReport:
+          type: ["boolean", "null"]
+      required:
+        - documentType
+        - laboratoryName
+        - reportNumber
+        - sampleId
+        - testDate
+        - moisture
+        - calorificValue
+        - ash
+        - warnings
+        - documentLooksLikeLabReport
 

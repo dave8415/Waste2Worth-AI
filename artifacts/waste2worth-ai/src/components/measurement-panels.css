@@ -30,3 +30,7 @@
 .mq-legacy{display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-size:11px;color:#5d6b5f}
 .mq-check{display:flex;gap:8px;align-items:flex-start;font-size:12px}
 .mq-actions{display:flex;gap:10px;align-items:center}
+.mq-review{display:grid;gap:6px;padding:10px;border:1px solid var(--line);border-radius:12px;background:#f8f7ef;min-width:0}
+.mq-review strong{font-size:12px}
+.mq-review p{margin:0;font-size:11px;line-height:1.45;color:#5d6b5f;display:grid;grid-template-columns:minmax(84px,36%) minmax(0,1fr);gap:6px}
+.mq-review p span{font-weight:600;color:#36513f}

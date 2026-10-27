@@ -30,13 +30,70 @@ export const AnalyzeWasteBody = zod.object({
 })
 
 export const AnalyzeWasteResponse = zod.object({
-  "wasteType": zod.string().describe('The likely agricultural or plantation waste type.'),
+  "wasteType": zod.string().describe('Display name for the likely agricultural or plantation residue. Prefer materialName when present.'),
+  "materialId": zod.string().optional().describe('Validated canonical residue id. unknown when the supplied id conflicts with the material name or the photo is not residue.'),
+  "materialName": zod.string().optional().describe('Human-readable residue name, including names not yet in the local catalog.'),
+  "materialCategory": zod.string().optional().describe('Broad residue category such as rice residues or wood and forestry residues.'),
   "confidence": zod.enum(['low', 'medium', 'high']),
+  "isAgriculturalResidue": zod.enum(['true', 'false', 'unknown']).optional().describe('Whether the photo appears to show agricultural or plantation residue.'),
+  "originalIdentification": zod.object({
+  "wasteType": zod.string(),
+  "materialId": zod.string().optional(),
+  "materialName": zod.string().optional(),
+  "confidence": zod.enum(['low', 'medium', 'high'])
+}).optional().describe('Unvalidated Gemini identification retained for audit history.'),
   "visibleClues": zod.array(zod.string()),
   "visibleQualityIndicators": zod.array(zod.string()).optional().describe('Visible condition clues only, not measured or confirmed material quality.'),
   "possibleContamination": zod.array(zod.string()).optional().describe('Possible visible foreign matter or contamination requiring inspection; absence is not proof of purity.'),
   "possibleUses": zod.array(zod.string()),
+  "needsUserConfirmation": zod.boolean().optional().describe('True when the identification is unmatched, uncertain, or should be reviewed by the user.'),
   "limitationNote": zod.string().describe('Must explain that a photo cannot confirm moisture, quality, or energy value and lab testing may be needed.')
 })
+
+
+/**
+ * Reads only values visibly printed in an uploaded COA or laboratory report. The response contains unconfirmed candidates. It does not verify the document or invent missing measurements.
+ * @summary Extract printed laboratory values from a COA or lab report
+ */
+export const extractCoaBodyDocumentBase64Max = 8388608;
+
+
+
+export const ExtractCoaBody = zod.object({
+  "documentBase64": zod.string().min(1).max(extractCoaBodyDocumentBase64Max).describe('Base64-encoded document content without a data URL prefix.'),
+  "mimeType": zod.enum(['application/pdf', 'image/jpeg', 'image/png', 'image/webp'])
+})
+
+export const ExtractCoaResponse = zod.object({
+  "documentType": zod.string().nullable(),
+  "laboratoryName": zod.string().nullable(),
+  "reportNumber": zod.string().nullable(),
+  "sampleId": zod.string().nullable(),
+  "testDate": zod.string().nullable(),
+  "moisture": zod.union([zod.object({
+  "value": zod.number().nullable(),
+  "unit": zod.string().nullable(),
+  "massBasis": zod.string().nullable(),
+  "method": zod.string().nullable(),
+  "printedText": zod.string().nullable()
+}),zod.null()]),
+  "calorificValue": zod.union([zod.object({
+  "value": zod.number().nullable(),
+  "unit": zod.string().nullable(),
+  "calorificType": zod.union([zod.literal('gross'),zod.literal('net'),zod.literal('unknown'),zod.literal(null)]).nullable(),
+  "massBasis": zod.string().nullable(),
+  "method": zod.string().nullable(),
+  "printedText": zod.string().nullable()
+}),zod.null()]),
+  "ash": zod.union([zod.object({
+  "value": zod.number().nullable(),
+  "unit": zod.string().nullable(),
+  "massBasis": zod.string().nullable(),
+  "method": zod.string().nullable(),
+  "printedText": zod.string().nullable()
+}),zod.null()]),
+  "warnings": zod.array(zod.string()),
+  "documentLooksLikeLabReport": zod.boolean().nullable()
+}).describe('Unconfirmed printed values. Missing or unclear fields are null.')
 
 

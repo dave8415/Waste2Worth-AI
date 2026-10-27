@@ -6,17 +6,31 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { WasteAnalysisConfidence } from './wasteAnalysisConfidence';
+import type { WasteAnalysisIsAgriculturalResidue } from './wasteAnalysisIsAgriculturalResidue';
+import type { WasteAnalysisOriginalIdentification } from './wasteAnalysisOriginalIdentification';
 
 export interface WasteAnalysis {
-  /** The likely agricultural or plantation waste type. */
+  /** Display name for the likely agricultural or plantation residue. Prefer materialName when present. */
   wasteType: string;
+  /** Validated canonical residue id. unknown when the supplied id conflicts with the material name or the photo is not residue. */
+  materialId?: string;
+  /** Human-readable residue name, including names not yet in the local catalog. */
+  materialName?: string;
+  /** Broad residue category such as rice residues or wood and forestry residues. */
+  materialCategory?: string;
   confidence: WasteAnalysisConfidence;
+  /** Whether the photo appears to show agricultural or plantation residue. */
+  isAgriculturalResidue?: WasteAnalysisIsAgriculturalResidue;
+  /** Unvalidated Gemini identification retained for audit history. */
+  originalIdentification?: WasteAnalysisOriginalIdentification;
   visibleClues: string[];
   /** Visible condition clues only, not measured or confirmed material quality. */
   visibleQualityIndicators?: string[];
   /** Possible visible foreign matter or contamination requiring inspection; absence is not proof of purity. */
   possibleContamination?: string[];
   possibleUses: string[];
+  /** True when the identification is unmatched, uncertain, or should be reviewed by the user. */
+  needsUserConfirmation?: boolean;
   /** Must explain that a photo cannot confirm moisture, quality, or energy value and lab testing may be needed. */
   limitationNote: string;
 }

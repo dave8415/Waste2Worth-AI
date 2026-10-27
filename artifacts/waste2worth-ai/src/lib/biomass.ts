@@ -1,15 +1,8 @@
+import { ALL_MATERIAL_ENTRIES, equivalentMaterialIds, inferCatalogId, type MaterialId } from "./material-catalog";
 import { PROVINCES, isDate, isValidLocation } from "./locations";
 
-export const MATERIALS = [
-  { id: "rice-husk", label: "Rice husks", aliases: ["rice husk", "rice hull", "paddy husk"] },
-  { id: "palm-kernel-shell", label: "Palm kernel shells", aliases: ["palm kernel shell", "palm shell"] },
-  { id: "empty-fruit-bunch", label: "Empty palm fruit bunches", aliases: ["empty fruit bunch", "palm fruit bunch"] },
-  { id: "coconut-shell", label: "Coconut shells", aliases: ["coconut shell"] },
-  { id: "bagasse", label: "Sugarcane bagasse", aliases: ["bagasse", "sugarcane"] },
-  { id: "corn-cob", label: "Corn cobs", aliases: ["corn cob", "maize cob"] },
-  { id: "other", label: "Other / uncertain material", aliases: [] },
-] as const;
-export type MaterialId = typeof MATERIALS[number]["id"];
+export const MATERIALS = ALL_MATERIAL_ENTRIES;
+export type { MaterialId };
 export const REGIONS = PROVINCES;
 export const USES = ["Biomass fuel", "Biochar", "Compost / mulch", "Other use"] as const;
 export type IntendedUse = typeof USES[number];
@@ -59,8 +52,7 @@ export function materialLabel(id: MaterialId | "") {
   return MATERIALS.find(material => material.id === id)?.label ?? "Not selected";
 }
 export function inferMaterial(text: string): MaterialId | "" {
-  const lower = text.toLowerCase();
-  return MATERIALS.find(material => material.aliases.some(alias => lower.includes(alias)))?.id ?? "";
+  return inferCatalogId(text);
 }
 function readNumber(value: string): number | null {
   if (!value.trim()) return null;
@@ -89,7 +81,8 @@ export interface BuyerMatch {
   reasons: string[];
 }
 export function findMatches(supply: Supply, buyers: DemoBuyer[] = []): BuyerMatch[] {
-  return buyers.filter(buyer => buyer.materials.includes(supply.material)).map(buyer => {
+  const supplyIds = new Set(equivalentMaterialIds(supply.material));
+  return buyers.filter(buyer => buyer.materials.some(id => supplyIds.has(id) || equivalentMaterialIds(id).some(eq => supplyIds.has(eq)))).map(buyer => {
     const regionFits = buyer.regions.includes(supply.region);
     const quantityFits = supply.quantityTonnes >= buyer.minimumTonnes;
     return {
@@ -111,17 +104,28 @@ export interface UseRoute {
   explanation: string;
   checks: string[];
 }
-const materialGuidance: Record<MaterialId, [string, string, string]> = {
+const GENERIC_GUIDANCE: [string, string, string] = [
+  "This residue may be usable in a compatible biomass system after testing moisture, ash, contaminants and equipment limits.",
+  "This residue may be a biochar feedstock after testing; do not assume a carbon-credit value.",
+  "This residue may be composted or used as mulch after contamination and agronomic checks.",
+];
+const materialGuidance: Partial<Record<MaterialId, [string, string, string]>> = {
   "rice-husk": ["Rice husks may be usable in a biomass system designed for their high silica and ash content.", "Rice husks may be a biochar feedstock, but ash-rich char needs testing for its intended application.", "Rice husks may be a compost bulking material; slow decomposition and crop suitability need assessment."],
+  "rice-straw": ["Rice straw may be used for energy after drying and testing; ash and alkali behaviour need checking.", "Rice straw may be a biochar feedstock after testing; do not assume carbon-credit value.", "Rice straw may be composted or used as mulch after agronomic and contamination checks."],
   "palm-kernel-shell": ["Palm kernel shells may suit compatible biomass boilers after testing.", "Clean palm kernel shells may be feedstock for controlled carbonization or biochar production.", "Shells break down slowly; composting may require crushing and blending, and may not be the best route."],
   "empty-fruit-bunch": ["Fibrous empty fruit bunches may need shredding and significant drying before compatible biomass use.", "Empty fruit bunches may suit biochar processing after drying and feedstock preparation.", "Shredded empty fruit bunches may suit compost or mulch after contamination and agronomic checks."],
+  "oil-palm-empty-fruit-bunch": ["Fibrous empty fruit bunches may need shredding and significant drying before compatible biomass use.", "Empty fruit bunches may suit biochar processing after drying and feedstock preparation.", "Shredded empty fruit bunches may suit compost or mulch after contamination and agronomic checks."],
   "coconut-shell": ["Coconut shells may suit compatible biomass systems after sizing and testing.", "Clean coconut shells may suit biochar or charcoal production. Activated carbon requires further processing and validation.", "Hard coconut shells degrade slowly; crushing and long decomposition times may be required."],
   "bagasse": ["Bagasse may suit compatible biomass systems, but moisture and storage conditions are important.", "Bagasse may suit biochar processing with suitable drying and handling.", "Bagasse may be composted with appropriate blending, aeration, and contamination checks."],
+  "sugarcane-bagasse": ["Bagasse may suit compatible biomass systems, but moisture and storage conditions are important.", "Bagasse may suit biochar processing with suitable drying and handling.", "Bagasse may be composted with appropriate blending, aeration, and contamination checks."],
   "corn-cob": ["Corn cobs may be biomass feedstock after drying and sizing for the equipment.", "Corn cobs may suit controlled biochar processing after feedstock testing.", "Corn cobs may be composted after shredding, with appropriate decomposition conditions."],
   "other": ["Identify the material and its composition before selecting biomass equipment.", "Unknown or mixed material should not be assumed suitable for biochar.", "Identify the material and contaminants before composting, mulch, or another reuse."],
+  "other-agricultural-residue": ["Identify the material and its composition before selecting biomass equipment.", "Unknown or mixed material should not be assumed suitable for biochar.", "Identify the material and contaminants before composting, mulch, or another reuse."],
+  unknown: ["Identify the material and its composition before selecting biomass equipment.", "Unknown or mixed material should not be assumed suitable for biochar.", "Identify the material and contaminants before composting, mulch, or another reuse."],
 };
+const UNIDENTIFIED = new Set<MaterialId>(["other", "other-agricultural-residue", "unknown"]);
 export function exploreUses(supply: Supply): UseRoute[] {
-  const descriptions = materialGuidance[supply.material];
+  const descriptions = materialGuidance[supply.material] ?? GENERIC_GUIDANCE;
   const qualityCheck = supply.quality === "contaminated"
     ? "Reported contamination: pause use until contaminants are identified and assessed by a qualified operator."
     : supply.quality === "mixed"
@@ -132,7 +136,7 @@ export function exploreUses(supply: Supply): UseRoute[] {
     : `Reported moisture is ${supply.moisturePercent}% (unverified). ${supply.moisturePercent > 20 ? "Drying may be needed; this is an indicative screening note, not an acceptance limit." : "Confirm by measurement and compare with operator-specific requirements."}`;
   return (["Biomass fuel", "Biochar", "Compost / mulch"] as const).map((use, index) => ({
     use,
-    outlook: supply.quality === "contaminated" ? "Pause for contamination checks" : supply.material === "other" ? "Identify material first" : "Potential route — checks required",
+    outlook: supply.quality === "contaminated" ? "Pause for contamination checks" : UNIDENTIFIED.has(supply.material) ? "Identify material first" : "Potential route — checks required",
     explanation: descriptions[index],
     checks: [
       qualityCheck, moistureCheck,
