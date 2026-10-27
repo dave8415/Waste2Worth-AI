@@ -6,8 +6,17 @@
  * OpenAPI spec version: 0.1.0
  */
 
+export * from './coaExtraction';
+export * from './coaExtractionInput';
+export * from './coaExtractionInputMimeType';
+export * from './coaPrintedCalorific';
+export * from './coaPrintedCalorificCalorificType';
+export * from './coaPrintedMeasurement';
 export * from './healthStatus';
 export * from './wasteAnalysis';
 export * from './wasteAnalysisConfidence';
 export * from './wasteAnalysisInput';
 export * from './wasteAnalysisInputMimeType';
+export * from './wasteAnalysisIsAgriculturalResidue';
+export * from './wasteAnalysisOriginalIdentification';
+export * from './wasteAnalysisOriginalIdentificationConfidence';

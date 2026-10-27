@@ -6,10 +6,11 @@ import { Header, Footer } from '@/components/layout';
 import { JourneyNav } from '@/components/journey-nav';
 import { StorageNotice } from '@/components/storage-notice';
 import { ScanSummary } from '@/components/scan-summary';
+import { MaterialConfirmForm } from '@/components/material-confirm';
 import { ShortOfferForm } from '@/components/offer-form';
 import { useJourney } from '@/lib/journey-state';
-import { assessmentSchema } from '@/lib/journey';
-import { MATERIALS, type MaterialId } from '@/lib/biomass';
+import { assessmentSchema, scanCanBeOffered, scanNeedsConfirmation } from '@/lib/journey';
+import { CATALOG, catalogEntry, type MaterialId } from '@/lib/material-catalog';
 
 type Photo = { file: File; preview: string; imageBase64: string };
 
@@ -63,17 +64,36 @@ function isConfigurationError(message: string): boolean {
   return /not configured|rejected the api key|configured gemini model is unavailable/i.test(message);
 }
 
+const ANALYSIS_TIMEOUT_MESSAGE = 'Analysis took too long. Please try again.';
+
+function isTimeoutError(error: unknown, message: string): boolean {
+  if (/took too long|timed out|timeout/i.test(message)) return true;
+  if (error && typeof error === 'object' && 'name' in error) {
+    const name = String((error as { name?: unknown }).name);
+    if (name === 'AbortError' || name === 'TimeoutError') return true;
+  }
+  return false;
+}
+
 
 function ManualEntry({ onDone }: { onDone: () => void }) {
   const { startScan } = useJourney();
   const [material, setMaterial] = useState<MaterialId | ''>('');
+  const [customName, setCustomName] = useState('');
   const [error, setError] = useState('');
   function submit(event: FormEvent) {
     event.preventDefault();
-    if (!material) { setError('Choose a material, or select other / uncertain.'); return; }
-    const label = MATERIALS.find(m => m.id === material)!.label;
-    const r = startScan({ wasteType: label, confidence: 'low', visibleClues: [], possibleUses: [], visibleQualityIndicators: [], possibleContamination: [],
-      limitationNote: 'Identified manually by the user. No photo was analysed; quality, contamination and moisture are unknown.' }, 'manual');
+    if (!material) { setError('Choose a material, or select other agricultural residue.'); return; }
+    const label = material === 'other-agricultural-residue'
+      ? customName.trim() || 'Other agricultural residue'
+      : catalogEntry(material)?.label ?? material;
+    const r = startScan({
+      wasteType: label, materialId: material, materialName: label, materialCategory: catalogEntry(material)?.category,
+      confidence: 'high', visibleClues: [], possibleUses: [], visibleQualityIndicators: [], possibleContamination: [],
+      needsUserConfirmation: false,
+      confirmedIdentification: { materialId: material, materialName: label, confirmedAt: new Date().toISOString() },
+      limitationNote: 'Identified manually by the user. No photo was analysed; quality, contamination and moisture are unknown.',
+    }, 'manual');
     if (!r.ok) { setError(Object.values(r.errors).join(' ')); return; }
     onDone();
   }
@@ -87,10 +107,16 @@ function ManualEntry({ onDone }: { onDone: () => void }) {
         <label htmlFor="manual-material" className="sr-only">Material</label>
         <select id="manual-material" className="field-input" value={material} aria-invalid={!!error} onChange={(e) => { setMaterial(e.target.value as MaterialId | ''); setError(''); }} data-testid="select-manual-material">
           <option value="">Choose material</option>
-          {MATERIALS.map((m) => <option key={m.id} value={m.id}>{m.label}</option>)}
+          {CATALOG.filter(entry => entry.id !== 'unknown').map((m) => <option key={m.id} value={m.id}>{m.label}</option>)}
         </select>
         <button type="submit" className="button-secondary" data-testid="button-manual-continue">Continue <ArrowRight size={14} /></button>
       </div>
+      {material === 'other-agricultural-residue' && (
+        <label className="field">
+          <span>Another material name</span>
+          <input className="field-input" value={customName} onChange={e => setCustomName(e.target.value)} placeholder="Enter the material name" data-testid="input-manual-custom-name" />
+        </label>
+      )}
       {error && <span className="field-error" role="alert" data-testid="error-manual-material">{error}</span>}
     </form>
   );
@@ -98,7 +124,7 @@ function ManualEntry({ onDone }: { onDone: () => void }) {
 
 export default function Scan() {
   const mutation = useAnalyzeWaste();
-  const { active, startScan, rememberPhoto } = useJourney();
+  const { active, startScan, confirmScan, rememberPhoto } = useJourney();
   const [, navigate] = useLocation();
   const [photo, setPhoto] = useState<Photo | null>(null);
   const [validationError, setValidationError] = useState('');
@@ -108,6 +134,7 @@ export default function Scan() {
   const pickerRef = useRef<HTMLInputElement>(null);
   const cameraRef = useRef<HTMLInputElement>(null);
   const offerRef = useRef<HTMLDivElement>(null);
+  const inFlight = useRef(false);
   const busy = mutation.isPending;
   const record = fresh ? undefined : active;
 
@@ -129,8 +156,10 @@ export default function Scan() {
   }
 
   async function analyzePhoto() {
-    if (!photo || busy) return;
+    if (!photo || mutation.isPending || inFlight.current) return;
+    inFlight.current = true;
     setRequestError('');
+    setOffering(false);
     try {
       const data = await mutation.mutateAsync({ data: { imageBase64: photo.imageBase64, mimeType: 'image/jpeg' } });
       const parsed = assessmentSchema.safeParse(data);
@@ -139,7 +168,12 @@ export default function Scan() {
       if (!r.ok) { setRequestError(Object.values(r.errors).join(' ')); return; }
       rememberPhoto(r.value.id, 'data:image/jpeg;base64,' + photo.imageBase64);
       setFresh(false); setOffering(false);
-    } catch (error) { setRequestError(errorText(error)); }
+    } catch (error) {
+      const message = errorText(error);
+      setRequestError(isTimeoutError(error, message) ? ANALYSIS_TIMEOUT_MESSAGE : message);
+    } finally {
+      inFlight.current = false;
+    }
   }
 
   function clearPhoto() {
@@ -150,6 +184,10 @@ export default function Scan() {
   function newScan() { clearPhoto(); setFresh(true); setOffering(false); }
 
   const configError = requestError ? isConfigurationError(requestError) : false;
+  const timeoutError = requestError === ANALYSIS_TIMEOUT_MESSAGE;
+  const nonResidue = Boolean(record && !record.scan.confirmedIdentification && (
+    record.scan.isAgriculturalResidue === 'false' || record.scan.isAgriculturalResidue === 'unknown' || record.scan.materialId === 'unknown'
+  ));
 
   return (
     <div className="app-shell">
@@ -189,12 +227,19 @@ export default function Scan() {
             </div>
             {validationError && <div className="status-message" role="alert" data-testid="status-validation-error">{validationError}</div>}
             {requestError && (
-              <div className={`status-message ${configError ? 'info' : ''}`} role="alert" data-testid={configError ? 'status-gemini-configuration' : 'status-analysis-error'}>
-                <strong>{configError ? 'Analysis needs a setup check.' : 'We could not complete the analysis.'}</strong><br />{requestError}<br />You can still enter the material manually below.
+              <div className={`status-message ${configError ? 'info' : ''}`} role="alert" data-testid={timeoutError ? 'status-analysis-timeout' : configError ? 'status-gemini-configuration' : 'status-analysis-error'}>
+                <strong>{timeoutError ? ANALYSIS_TIMEOUT_MESSAGE : configError ? 'Analysis needs a setup check.' : 'We could not complete the analysis.'}</strong>
+                {!timeoutError && <><br />{requestError}<br />You can still enter the material manually below.</>}
               </div>
             )}
-            <button type="button" className="button-primary submit-analysis" onClick={() => void analyzePhoto()} disabled={!photo || busy} data-testid="button-analyze-photo">
-              {busy ? <><LoaderCircle size={16} className="spin" /> Looking closely…</> : <>Identify this material <ChevronRight size={16} /></>}
+            <button
+              type="button"
+              className="button-primary submit-analysis"
+              onClick={() => void analyzePhoto()}
+              disabled={!photo || busy}
+              data-testid={timeoutError ? 'button-retry-analysis' : 'button-analyze-photo'}
+            >
+              {busy ? <><LoaderCircle size={16} className="spin" /> Looking closely…</> : timeoutError ? 'Try again' : <>Identify this material <ChevronRight size={16} /></>}
             </button>
             <div className="privacy-note"><ShieldCheck size={14} /> The result is a visual estimate, not a material certification.</div>
           </section>
@@ -210,10 +255,21 @@ export default function Scan() {
               <div className="result-content" data-testid="analysis-result">
                 {!photo && record.source === 'photo' && <p className="muted-line" data-testid="text-photo-not-persisted">Restored saved result. The photo itself is not kept after reload.</p>}
                 <ScanSummary scan={record.scan} source={record.source} />
+                {nonResidue && (
+                  <div className="status-message" role="status" data-testid="status-non-residue">
+                    This photo may not show an agricultural or plantation residue.
+                    <div className="non-residue-actions">
+                      <button type="button" className="button-secondary" onClick={newScan} data-testid="button-scan-another-photo">Scan another photo</button>
+                    </div>
+                  </div>
+                )}
+                {!record.offer && scanNeedsConfirmation(record.scan) && (
+                  <MaterialConfirmForm scan={record.scan} onConfirm={confirmation => confirmScan(record.id, confirmation)} />
+                )}
                 {record.offer ? (
                   <div className="confirm-box" role="status" data-testid="status-already-offered">This batch is already offered. It cannot be submitted twice.
                     <button type="button" className="button-primary" onClick={() => navigate('/market')} data-testid="button-view-offer-market">View in Market <ArrowRight size={15} /></button></div>
-                ) : !offering && (
+                ) : scanCanBeOffered(record.scan) && !offering && (
                   <button type="button" className="button-primary continue-button" onClick={() => setOffering(true)} data-testid="button-offer-material" aria-label="Offer this material">Offer this material <ArrowRight size={16} /></button>
                 )}
                 <button type="button" className="text-link small" onClick={newScan} data-testid="button-new-scan"><Plus size={13} /> Scan a different batch</button>
@@ -227,7 +283,7 @@ export default function Scan() {
             )}
           </section>
         </div>
-        {record && !record.offer && offering && (
+        {record && !record.offer && offering && scanCanBeOffered(record.scan) && (
           <div ref={offerRef} className="panel offer-panel" data-testid="section-short-offer">
             <ShortOfferForm record={record} onSubmitted={() => navigate('/market')} />
           </div>

@@ -8,6 +8,12 @@ export interface TestResultsDraft {
   date: string;
   evidence?: EvidenceMeta;
   confirmed: boolean;
+  laboratoryName?: string;
+  reportNumber?: string;
+  sampleId?: string;
+  extractionModel?: string;
+  extractedAt?: string;
+  calorificType?: "gross" | "net" | "unknown";
 }
 export function testResultsDraft(quality?: MaterialQuality): TestResultsDraft {
   const measured = QUALITY_KEYS.map(k => quality?.[k]).filter(m => m?.value != null);
@@ -21,6 +27,12 @@ export function testResultsDraft(quality?: MaterialQuality): TestResultsDraft {
     date: quality?.testResult?.date ?? (common ? measured[0]!.date : ""),
     evidence: quality?.testResult?.evidence,
     confirmed: false,
+    laboratoryName: quality?.testResult?.laboratoryName,
+    reportNumber: quality?.testResult?.reportNumber,
+    sampleId: quality?.testResult?.sampleId,
+    extractionModel: quality?.testResult?.extractionModel,
+    extractedAt: quality?.testResult?.extractedAt,
+    calorificType: quality?.testResult?.calorificType,
   };
 }
 export function validateTestResults(draft: TestResultsDraft, nowIso: string): Result<MaterialQuality> {
@@ -40,6 +52,12 @@ export function validateTestResults(draft: TestResultsDraft, nowIso: string): Re
   return { ok: true, value: { ...parsed.value, testResult: {
     source: draft.source as "lab report" | "measuring device" | "user entry", date: draft.date,
     evidence: evidence?.success ? evidence.data : undefined, confirmedAt: nowIso,
+    ...(draft.laboratoryName ? { laboratoryName: draft.laboratoryName } : {}),
+    ...(draft.reportNumber ? { reportNumber: draft.reportNumber } : {}),
+    ...(draft.sampleId ? { sampleId: draft.sampleId } : {}),
+    ...(draft.extractionModel ? { extractionModel: draft.extractionModel } : {}),
+    ...(draft.extractedAt ? { extractedAt: draft.extractedAt } : {}),
+    ...(draft.calorificType ? { calorificType: draft.calorificType } : {}),
   } } };
 }
 export function qualityStatus(quality?: MaterialQuality): string {

@@ -37,6 +37,10 @@ test("optional moisture remains unknown rather than inferred; zero and 100 are v
     assert.equal(parseSupply({ ...draft, moisturePercent }).ok, false);
   }
 });
+test("new palm empty-fruit-bunch ids still match legacy buyer listings", () => {
+  const matches = findMatches(supply({ material: "oil-palm-empty-fruit-bunch" }), DEMO_BUYERS);
+  assert.ok(matches.some(match => match.buyer.id === "demo-compost"));
+});
 test("matches exclude incompatible materials and sort by explicit region and quantity rules", () => {
   const matches = findMatches(supply(), DEMO_BUYERS);
   assert.equal(matches[0].buyer.id, "demo-heat");

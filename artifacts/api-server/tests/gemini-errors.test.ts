@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { geminiErrorMessage } from "../src/lib/gemini-errors.ts";
+import { ANALYSIS_TIMEOUT_MESSAGE, geminiErrorMessage, isGeminiTimeoutError } from "../src/lib/gemini-errors.ts";
 
 test("invalid key gets specific guidance, without exposing provider text", () => {
   const message = geminiErrorMessage(400, {
@@ -46,4 +46,12 @@ test("invalid photo and temporary outage have distinct guidance", () => {
   for (const payload of [null, "not JSON", {}, { error: "invalid" }]) {
     assert.match(geminiErrorMessage(500, payload), /temporarily unavailable/);
   }
+});
+
+test("timeout errors use a safe retry message", () => {
+  assert.equal(isGeminiTimeoutError({ name: "TimeoutError" }), true);
+  assert.equal(isGeminiTimeoutError({ name: "AbortError" }), true);
+  assert.equal(isGeminiTimeoutError({ name: "Error", message: "network" }), false);
+  assert.match(ANALYSIS_TIMEOUT_MESSAGE, /took too long/i);
+  assert.doesNotMatch(ANALYSIS_TIMEOUT_MESSAGE, /GEMINI|api key|AbortError/i);
 });
